@@ -1,12 +1,7 @@
 package com.lstepnio.egauge.ui.settings
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationManager
-import android.os.CancellationSignal
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -19,21 +14,17 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.core.location.LocationManagerCompat
 import com.lstepnio.egauge.SunsetBrightness
 import com.lstepnio.egauge.SunsetLocation
 import com.lstepnio.egauge.core.designsystem.DialogContent
-import kotlin.coroutines.resume
 import kotlin.math.roundToInt
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 internal fun SunsetBrightnessDialog(
     current: SunsetBrightness,
     dayBrightness: Int,
     onBack: () -> Unit,
+    locate: suspend (Context) -> SunsetPhoneLocation = ::readSunsetLocation,
     onSave: (Boolean, Int, SunsetLocation?) -> Unit
 ) {
     val context = LocalContext.current
@@ -43,13 +34,24 @@ internal fun SunsetBrightnessDialog(
     var looking by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) looking = true else message = "Allow approximate location to set the sunset schedule."
+        if (automatic) {
+            if (granted) looking = true else message = "Allow approximate location for eGauge in Android settings, then try again."
+        }
     }
-    LaunchedEffect(looking) {
-        if (!looking) return@LaunchedEffect
-        val resolved = readSunsetLocation(context)
+    fun requestLocation() {
+        message = null
+        looking = true
+    }
+    LaunchedEffect(automatic, looking) {
+        if (!automatic || !looking) return@LaunchedEffect
+        val result = locate(context)
         looking = false
-        if (resolved != null) location = resolved else message = "Couldn't get your location. Try again with location services on."
+        when (result) {
+            is SunsetPhoneLocation.Ready -> location = result.location
+            SunsetPhoneLocation.PermissionRequired -> permission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+            SunsetPhoneLocation.LocationOff -> message = "Turn on Location in Android settings, then try again."
+            SunsetPhoneLocation.Unavailable -> message = "Your phone couldn’t find a location. Try again in a spot with better reception."
+        }
     }
     AlertDialog(
         onDismissRequest = onBack,
@@ -72,7 +74,11 @@ internal fun SunsetBrightnessDialog(
                     Text("Sunset to sunrise", Modifier.weight(1f))
                     Switch(
                         automatic,
-                        { automatic = it },
+                        { enabled ->
+                            automatic = enabled
+                            if (enabled && location == null) requestLocation()
+                            if (!enabled) looking = false
+                        },
                         modifier = Modifier.semantics {
                             contentDescription = "Sunset to sunrise"
                         }
@@ -81,16 +87,7 @@ internal fun SunsetBrightnessDialog(
                 if (automatic) {
                     Text("The gauge uses your approximate location to adjust for seasonal daylight.")
                     TextButton(
-                        onClick = {
-                            message = null
-                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-                                PackageManager.PERMISSION_GRANTED
-                            ) {
-                                looking = true
-                            } else {
-                                permission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-                            }
-                        },
+                        onClick = ::requestLocation,
                         enabled = !looking
                     ) {
                         Text(
@@ -103,6 +100,7 @@ internal fun SunsetBrightnessDialog(
                             }
                         )
                     }
+                    if (location != null && !looking && message == null) Text("Location ready")
                     message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             }
@@ -114,36 +112,4 @@ internal fun SunsetBrightnessDialog(
         },
         dismissButton = { TextButton(onBack) { Text("Cancel") } }
     )
-}
-
-@SuppressLint("MissingPermission")
-private suspend fun readSunsetLocation(context: Context): SunsetLocation? {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) !=
-        PackageManager.PERMISSION_GRANTED
-    ) {
-        return null
-    }
-    val manager = context.getSystemService(LocationManager::class.java) ?: return null
-    val providers = listOf("fused", LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
-    val provider = providers.firstOrNull { it in manager.getProviders(true) } ?: return null
-    val location = withTimeoutOrNull(12_000) {
-        suspendCancellableCoroutine<Location?> { continuation ->
-            val cancellation = CancellationSignal()
-            continuation.invokeOnCancellation { cancellation.cancel() }
-            try {
-                LocationManagerCompat.getCurrentLocation(
-                    manager,
-                    provider,
-                    cancellation,
-                    ContextCompat.getMainExecutor(context)
-                ) { continuation.resume(it) }
-            } catch (_: SecurityException) {
-                continuation.resume(null)
-            } catch (_: IllegalArgumentException) {
-                continuation.resume(null)
-            }
-        }
-    } ?: return null
-    // A tenth of a degree is sufficient for daylight and avoids persisting a precise position.
-    return SunsetLocation((location.latitude * 10).roundToInt() * 10, (location.longitude * 10).roundToInt() * 10)
 }
