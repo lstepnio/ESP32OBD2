@@ -1904,7 +1904,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             baseRevision,
             bothAdapters,
             schemaVersion,
-            transmittedDraft.actions
+            transmittedDraft.actions,
+            savedDayBrightness = activeDocument?.let { org.json.JSONObject(it.json).getInt("brightness") }
         ).second
     }
 

@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "esp_err.h"
 
+#define DISPLAY_DAY_BRIGHTNESS_DEFAULT 90
+
 typedef struct
 {
     uint8_t  rotation;

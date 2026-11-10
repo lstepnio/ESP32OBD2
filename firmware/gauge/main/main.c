@@ -1369,7 +1369,7 @@ static void init_config(void)
     ESP_LOGI(TAG, "Initializing configuration...");
 
     ESP_ERROR_CHECK(config_init());
-    ESP_ERROR_CHECK(display_settings_init(0, 80, 0));
+    ESP_ERROR_CHECK(display_settings_init(0, DISPLAY_DAY_BRIGHTNESS_DEFAULT, 0));
     sunset_runtime_init();
     gauge_board_initialize();
     const gauge_board_t *board = gauge_board_description();
@@ -1435,7 +1435,7 @@ static void init_config(void)
         ESP_LOGI(TAG, "Configuration loaded successfully: idx=%d, disp_rot=%d", g_config.cfg_idx, g_config.disp_rot);
     }
     uint8_t default_rotation   = g_runtime ? g_runtime->rotation : (uint8_t)g_config.disp_rot;
-    uint8_t default_brightness = g_runtime ? g_runtime->brightness : 80;
+    uint8_t default_brightness = g_runtime ? g_runtime->brightness : DISPLAY_DAY_BRIGHTNESS_DEFAULT;
     ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
     g_config.disp_rot = (lv_display_rotation_t)display_settings_boot_rotation();
     atomic_store(&g_selected_page, g_config.cfg_idx);
