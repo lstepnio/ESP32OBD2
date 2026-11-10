@@ -1,42 +1,94 @@
 package com.lstepnio.egauge.virtual
 
 import com.lstepnio.egauge.BuildConfig
+import com.lstepnio.egauge.gearPositions
 import java.util.Locale
 
 /** Separate read-only routes for one logical vehicle. */
 internal enum class VirtualSource(val label: String, val responder: String) {
     Engine("Main adapter", "7E8"),
-    Transmission("Transmission adapter", "7E9")
+    Transmission("Transmission adapter", "7E9");
+
+    val available: Boolean get() = this == Engine || BuildConfig.DEBUG
 }
 
-internal enum class VirtualPid(
+internal class VirtualPid(
     val id: String,
-    val code: Int,
-    val bytes: Int = 1,
-    val periodMs: Long = 2_000,
-    val source: VirtualSource = VirtualSource.Engine,
-    val decode: (Int) -> Double
+    val source: VirtualSource,
+    val request: String,
+    prefixHex: String,
+    val minPayloadBytes: Int,
+    val periodMs: Long,
+    staleAfterMs: Long,
+    val decoder: VirtualDecoder,
+    val gear: Boolean
 ) {
-    Rpm("rpm", 0x0c, 2, 500, decode = { it / 4.0 }),
-    Speed("speed", 0x0d, periodMs = 500, decode = Int::toDouble),
-    Coolant("coolant", 0x05, decode = { it - 40.0 }),
-    Intake("intake", 0x0f, decode = { it - 40.0 }),
-    Ambient("ambient", 0x46, decode = { it - 40.0 }),
-    Oil("oiltemp", 0x5c, decode = { it - 40.0 }),
-    Load("load", 0x04, periodMs = 750, decode = { it * 100.0 / 255.0 }),
-    Throttle("throttle", 0x11, periodMs = 750, decode = { it * 100.0 / 255.0 }),
-    Fuel("fuel", 0x2f, decode = { it * 100.0 / 255.0 }),
-    Map("map", 0x0b, periodMs = 750, decode = Int::toDouble),
-    Maf("maf", 0x10, 2, 750, decode = { it / 100.0 }),
-    Voltage("voltage", 0x42, 2, decode = { it / 1_000.0 }),
-    TransmissionTemp("tcmtemp", 0x04fe, 3, source = VirtualSource.Transmission, decode = { (it shr 16) - 40.0 }),
-    Gear("tcmgear", 0x5503, periodMs = 500, source = VirtualSource.Transmission, decode = Int::toDouble);
-
-    val available: Boolean get() = source == VirtualSource.Engine || BuildConfig.DEBUG
-    val request: String get() = String.format(Locale.ROOT, if (source == VirtualSource.Engine) "01%02X" else "22%04X", code)
-    val prefix: List<Int> get() = if (source == VirtualSource.Engine) listOf(0x41, code) else listOf(0x62, code shr 8, code and 0xff)
-    val freshnessMs: Long get() = if (periodMs < 1_000) 5_000 else 10_000
+    val code = request.substring(2).toInt(16)
+    val prefix = prefixHex.chunked(2).map { it.toInt(16) }
+    val freshnessMs = staleAfterMs.coerceAtLeast(5_000)
 }
+
+internal class VirtualDecoder(
+    private val offsetBytes: Int,
+    private val length: Int,
+    private val littleEndian: Boolean,
+    private val signed: Boolean,
+    private val numerator: Int,
+    private val denominator: Int,
+    private val offset: Double,
+    private val minimum: Double,
+    private val maximum: Double
+) {
+    fun decode(data: List<Int>): Double? {
+        if (length !in 1..4 || offsetBytes < 0 || offsetBytes > data.size - length || denominator == 0) return null
+        var raw = 0L
+        repeat(length) { i ->
+            val index = offsetBytes + if (littleEndian) length - 1 - i else i
+            raw = (raw shl 8) or data[index].toLong()
+        }
+        val bits = length * 8
+        if (signed && raw and (1L shl (bits - 1)) != 0L) raw -= 1L shl bits
+        return (raw.toDouble() * numerator / denominator + offset).takeIf { it.isFinite() && it in minimum..maximum }
+    }
+}
+
+internal val virtualPidsById = virtualPidCatalog.associateBy { it.id }
+
+internal class VirtualEngineSupport(private val blocks: Map<Int, Long>) {
+    fun permits(code: Int): Boolean {
+        val base = (code - 1) / 32 * 32
+        val mask = blocks[base]
+        return if (mask != null) {
+            mask and (1L shl (32 - (code - base))) != 0L
+        } else {
+            // An unreported block is unknown unless an earlier valid block ruled it out.
+            blocks.none { (priorBase, priorMask) -> priorBase < base && priorMask and 1L == 0L }
+        }
+    }
+}
+
+internal suspend fun discoverVirtualEngineSupport(exchange: suspend (String) -> String): VirtualEngineSupport {
+    val lastPid = virtualPidCatalog.filter { it.source == VirtualSource.Engine }.maxOf { it.code }
+    val blocks = mutableMapOf<Int, Long>()
+    for (base in 0 until lastPid step 32) {
+        val response = exchange(String.format(Locale.ROOT, "01%02X", base))
+        val prefix = listOf(0x41, base)
+        val payload = virtualPayloads(response, VirtualSource.Engine)
+            .filter { it.take(2) == prefix }.singleOrNull()
+        if (payload?.size != 6) break
+        val mask = payload.drop(2).fold(0L) { value, byte -> (value shl 8) or byte.toLong() }
+        blocks[base] = mask
+        if (mask and 1L == 0L) break
+    }
+    return VirtualEngineSupport(blocks)
+}
+
+internal fun virtualReadingChoices(support: VirtualEngineSupport?, transmissionBound: Boolean): Set<String> = virtualPidCatalog.filter { pid ->
+    pid.source.available && when (pid.source) {
+        VirtualSource.Engine -> support?.permits(pid.code) ?: true
+        VirtualSource.Transmission -> transmissionBound
+    }
+}.mapTo(mutableSetOf()) { it.id }
 
 internal data class VirtualSample(val value: Double, val observedAtMs: Long) {
     fun fresh(pid: VirtualPid, now: Long) = (now - observedAtMs) in 0 until pid.freshnessMs
@@ -92,13 +144,8 @@ internal fun decodeVirtualReply(response: String, pid: VirtualPid): Double? {
     val payload = virtualPayloads(response, pid.source).filter { it.take(prefix.size) == prefix }.singleOrNull()
         ?: return null
     val data = payload.drop(prefix.size)
-    if (data.size != pid.bytes) return null
-    val value = pid.decode(data.fold(0) { total, byte -> total * 256 + byte })
-    return when (pid) {
-        VirtualPid.Gear -> value.takeIf { it in com.lstepnio.egauge.gearPositions }
-        VirtualPid.TransmissionTemp -> value.takeIf { it in 0.0..180.0 }
-        else -> value
-    }
+    if (data.size < pid.minPayloadBytes) return null
+    return pid.decoder.decode(data)?.takeIf { !pid.gear || it in gearPositions }
 }
 
 internal fun matchesVirtualTransmission(calibration: String, verification: String): Boolean {

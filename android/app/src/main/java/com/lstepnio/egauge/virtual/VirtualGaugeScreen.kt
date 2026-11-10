@@ -53,7 +53,7 @@ internal fun virtualFace(
     units: MeasurementSystem
 ): ReadingPreviewUi {
     fun history(id: String): List<VirtualSample> {
-        val pid = VirtualPid.entries.firstOrNull { it.id == id } ?: return emptyList()
+        val pid = virtualPidsById[id] ?: return emptyList()
         return readings[pid].orEmpty().filter { it.fresh(pid, now) }
     }
     fun formatted(id: String): String {
@@ -103,7 +103,8 @@ internal data class VirtualBindings(val engine: String?, val transmission: Strin
 
 internal data class VirtualLink(
     val status: VirtualStatus = VirtualStatus.Unselected,
-    val readings: VirtualReadings = emptyMap()
+    val readings: VirtualReadings = emptyMap(),
+    val engineSupport: VirtualEngineSupport? = null
 ) {
     fun statusAt(now: Long): VirtualStatus = if (status == VirtualStatus.Waiting &&
         readings.any { (pid, samples) -> samples.lastOrNull()?.fresh(pid, now) == true }
@@ -127,12 +128,18 @@ private suspend fun pollVirtualLink(
         publish(VirtualLink(VirtualStatus.Connecting))
         val failure = try {
             adapter.read(address, source) {
-                var link = VirtualLink(VirtualStatus.Waiting)
+                val support = if (source == VirtualSource.Engine) engineSupport() else null
+                var link = VirtualLink(VirtualStatus.Waiting, engineSupport = support)
                 publish(link)
+                val eligible = pids.filterTo(mutableSetOf()) { support?.permits(it.code) != false }
+                if (eligible.isEmpty()) {
+                    waitForDisconnect()
+                    return@read
+                }
                 val dueAt = mutableMapOf<VirtualPid, Long>()
                 var lastSample = SystemClock.elapsedRealtime()
                 while (true) {
-                    val pid = nextVirtualPid(pids, visible(), dueAt, SystemClock.elapsedRealtime())
+                    val pid = nextVirtualPid(eligible, visible(), dueAt, SystemClock.elapsedRealtime())
                     if (pid == null) {
                         delay(50)
                         continue
@@ -151,9 +158,10 @@ private suspend fun pollVirtualLink(
                         publish(link)
                         lastSample = observed
                         retryMs = 1_000
-                    } else if (source == VirtualSource.Transmission && observed - lastSample >= 15_000) {
-                        // Recheck calibration after a quiet interval before admitting enhanced data again.
-                        throw VirtualTransmissionUnverified()
+                    } else if (observed - lastSample >= 15_000) {
+                        if (source == VirtualSource.Transmission) throw VirtualTransmissionUnverified()
+                        // Recheck advertised support when a connected adapter stops receiving ECU data.
+                        return@read
                     }
                 }
             }
@@ -179,7 +187,7 @@ internal fun VirtualGaugeScreen(
     pages: List<GaugePageDraft>,
     units: MeasurementSystem,
     onBack: () -> Unit,
-    onEdit: (Int, MeasurementSystem) -> Unit,
+    onEdit: (Int, MeasurementSystem, Set<String>) -> Unit,
     onBluetoothSettings: () -> Unit,
     onManageAccess: (() -> Unit)? = null
 ) {
@@ -194,7 +202,7 @@ internal fun VirtualGaugeScreen(
     fun key(source: VirtualSource) = if (source == VirtualSource.Engine) "adapter.$vehicleId" else "transmission.$vehicleId"
     var bindings by remember(vehicleId) {
         fun saved(source: VirtualSource) = prefs.getString(key(source), null)?.takeIf(BluetoothAdapter::checkBluetoothAddress)
-        mutableStateOf(VirtualBindings(saved(VirtualSource.Engine), saved(VirtualSource.Transmission).takeIf { VirtualPid.Gear.available }))
+        mutableStateOf(VirtualBindings(saved(VirtualSource.Engine), saved(VirtualSource.Transmission).takeIf { VirtualSource.Transmission.available }))
     }
     var setup by rememberSaveable(vehicleId) { mutableStateOf(false) }
     var picker by rememberSaveable(vehicleId) { mutableStateOf<VirtualSource?>(null) }
@@ -211,7 +219,7 @@ internal fun VirtualGaugeScreen(
     val visibleIds by rememberUpdatedState(pages.getOrNull(pager.currentPage)?.pidIds.orEmpty().toSet())
     val pids = remember(pages) {
         val ids = pages.flatMap { it.pidIds }.toSet()
-        VirtualPid.entries.filter { it.available && it.id in ids }.toSet()
+        virtualPidCatalog.filter { it.source.available && it.id in ids }.toSet()
     }
     val links = remember(bindings, radioStatus, pids) { mutableStateMapOf<VirtualSource, VirtualLink>() }
     DisposableEffect(view, setup) {
@@ -242,7 +250,7 @@ internal fun VirtualGaugeScreen(
                             VirtualSource.entries.forEach { source ->
                                 val address = bindings.address(source) ?: return@forEach
                                 val owned = pids.filter { it.source == source }.toSet().ifEmpty {
-                                    setOf(if (source == VirtualSource.Engine) VirtualPid.Rpm else VirtualPid.TransmissionTemp)
+                                    setOf(virtualPidsById.getValue(if (source == VirtualSource.Engine) "rpm" else "tcmtemp"))
                                 }
                                 launch { pollVirtualLink(adapter, address, source, owned, { visibleIds }) { links[source] = it } }
                             }
@@ -312,14 +320,17 @@ internal fun VirtualGaugeScreen(
         )
     } else {
         val readings = links.values.flatMap { it.readings.entries }.associate { it.key to it.value }
+        val transmissionBound = bindings.address(VirtualSource.Transmission) != null
+        val readingChoices = virtualReadingChoices(links[VirtualSource.Engine]?.engineSupport, transmissionBound)
         VirtualGaugeContent(
             pages, displayUnits, pager, readings, now,
             VirtualSource.Engine.let(statuses::getValue),
-            statuses[VirtualSource.Transmission].takeIf { bindings.address(VirtualSource.Transmission) != null },
+            statuses[VirtualSource.Transmission].takeIf { transmissionBound },
             hasMainAdapter = bindings.engine != null,
             onBack = ::back,
             onSetup = { setup = true },
-            onEdit = { onEdit(pager.currentPage.coerceIn(pages.indices), displayUnits) }
+            onEdit = { onEdit(pager.currentPage.coerceIn(pages.indices), displayUnits, readingChoices) },
+            readingChoices = readingChoices
         )
     }
 }
@@ -336,7 +347,8 @@ internal fun VirtualGaugeContent(
     hasMainAdapter: Boolean,
     onBack: () -> Unit,
     onSetup: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    readingChoices: Set<String> = virtualReadingChoices(null, transmission != null)
 ) {
     val mainLive = engine == VirtualStatus.Live
     val transmissionLive = transmission == VirtualStatus.Live
@@ -367,11 +379,14 @@ internal fun VirtualGaugeContent(
         when {
             !hasMainAdapter -> PrimaryAction("Set up adapters", onSetup)
 
-            page?.pidIds?.any { id -> VirtualPid.entries.none { it.available && it.id == id } } == true ->
+            page?.pidIds?.any { id -> virtualPidsById[id]?.source?.available != true } == true ->
                 Text("This reading is unavailable on Virtual Gauge.", style = MaterialTheme.typography.bodySmall)
 
-            page?.pidIds?.any { it == "tcmgear" || it == "tcmtemp" } == true && transmission == null ->
+            page?.pidIds?.any { virtualPidsById[it]?.source == VirtualSource.Transmission } == true && transmission == null ->
                 TextButton(onSetup) { Text("Add transmission adapter") }
+
+            page?.pidIds?.any { it !in readingChoices } == true ->
+                Text("Your vehicle doesn’t report every reading on this page.", style = MaterialTheme.typography.bodySmall)
         }
         FlowRow(
             Modifier.fillMaxWidth(),

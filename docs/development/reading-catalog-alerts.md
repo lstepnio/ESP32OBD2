@@ -12,8 +12,9 @@ distance/time since diagnostic events, ethanol, fuel rate and torque.
 `contracts/reading-catalog.json` is the single editable catalog. It contains editor
 identity, source/category, gauge label, example, minimum configuration capability
 and the complete wire definition, provenance and synthetic decode vectors.
-`tools/generate_reading_catalog.py` generates Android `ReadingCatalog.kt` and the
-wire template plus firmware `reading_policy_catalog.inc`. `tools/validate.py` rejects drift and validates every definition
+`tools/generate_reading_catalog.py` generates Android editor metadata, the
+[Virtual Gauge projection](../architecture/virtual-gauge.md#read-only-transport-and-ownership),
+the wire template and firmware polling metadata. `tools/validate.py` rejects drift and validates every definition
 and a selected one-reading configuration. The template stores the full library.
 The gauge receives only definitions used by the saved pages and enabled alerts.
 

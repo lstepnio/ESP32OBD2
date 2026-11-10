@@ -25,19 +25,25 @@ transfers are separate.
   has one in-flight request, bounded framing, cleanup and backoff. A lost
   source drops its own samples. The other source stays live. Replacing a
   binding restarts the dashboard's sessions and retires their samples.
-- Main reads use 11-bit/500 kbps CAN, Mode 01 and responder 7E8. Supported
-  readings include RPM, speed, coolant, intake, ambient and oil temperatures,
-  load, throttle, fuel, manifold pressure, air flow and module voltage.
+- Main reads use 11-bit/500 kbps CAN, Mode 01 and responder 7E8. The
+  [shared reading catalog](../development/reading-catalog-alerts.md#scope-and-authority)
+  supplies all compatible requests, decoding rules and units. At connect,
+  the App checks the engine's supported-PID bitmaps up to the last catalog
+  request. Confirmed unsupported readings are skipped in polling and excluded
+  from the picker. Missing or ambiguous blocks leave support unknown, so offline
+  editing and vehicles with incomplete bitmaps can still use compatible readings.
+  Saved pages stay intact when their readings are unavailable.
 - The separate transmission profile is specific to the captured JSS swap.
   It uses physical request 7E1, responder 7E9, and the captured calibration
   and CVN as a gate for the two enhanced reads. Keep this slot in development
   builds until the dual-adapter Jeep checks pass. A reconnect or prolonged
   loss rechecks identity. Temperature and current gear follow the existing
   [JSS definitions](../development/tcm-values-research-plan.md).
-- Visible RPM and speed target a 500 ms interval when the link can keep up.
+- The App polls configured pages only, using the catalog's foreground periods.
   Older due readings still get service. Hidden pages warm the cache, and
-  unsupported readings retry more slowly. The round face uses measured
-  values, independently expired after 5 or 10 seconds. This mode performs
+  unanswered readings retry more slowly. The round face expires measured
+  values independently, using the catalog's stale limit with a five-second
+  minimum. This mode performs
   no vehicle actions, clearing, fault checks or threshold notifications.
 
 There are no firmware or App-to-gauge protocol changes. The
@@ -54,11 +60,12 @@ for Play Billing, future StoreKit support, and the introductory trial.
 
 ## Qualification
 
-Run the virtual gauge JVM and managed UI fixtures. They cover fragmented
-responses, controller identity, source loss, duplicate binding rejection,
+Run the virtual gauge JVM and managed UI fixtures. They cover shared decoder
+vectors, partial/conflicting support reports, selection, fragmented responses,
+controller identity, source loss, duplicate binding rejection,
 and compact/200% dashboard states. The owner reported the
 single-adapter dashboard worked on the Jeep. The revised two-adapter path
 needs parked testing with both Vgates: select the correct ports, compare
-RPM/gear/temperature, unplug each adapter separately, verify the other
+RPM/gear/temperature and a newly selectable engine reading, unplug each adapter separately, verify the other
 source remains live, then confirm reconnect and session release on exit.
 A second stock vehicle is needed before broadening compatibility claims.
