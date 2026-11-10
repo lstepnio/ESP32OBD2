@@ -549,7 +549,6 @@ int main(int argc, char **argv)
     ui_set_source_state(ui, 0, false, 7, 1);
     ui_set_source_state(ui, 1, false, 8, 2);
     vehicle = false;
-    ui_set_page_position(ui, 1, 3);
     assert(ui_request_showcase(ui, true, 8, 7, false, false));
     tick(60);
     assert(lv_obj_has_flag(ui->widgets.demo_lbl, LV_OBJ_FLAG_HIDDEN));
@@ -1202,7 +1201,7 @@ int main(int argc, char **argv)
     close_vehicle_menu(ui);
     assert(!ui_vehicle_burnout_held(ui));
     /* A dual arc reuses the original arc object, selects either numeric slot,
-     * and retains the two reading identities/colors and tenth-page position. */
+     * and retains the two reading identities/colors. */
     ui->simulated = false;
     page_action_reset(&ui->action);
     ui_set_alert_full(ui, 0, false, "", false);
@@ -1219,12 +1218,10 @@ int main(int argc, char **argv)
     ui_set_value(ui, 0x5503, &park);
     ui_set_value(ui, 0x0c, &idle_rpm);
     ui_set_page(ui, &dual_arc);
-    ui_set_page_position(ui, 9, 10);
     tick(60);
     assert(!lv_obj_has_flag(ui->widgets.arc, LV_OBJ_FLAG_HIDDEN));
     assert(lv_arc_get_value(ui->widgets.arc) == 84);
     assert(!strcmp(lv_label_get_text(ui->widgets.dual_value[0]), "P"));
-    assert(!strcmp(lv_label_get_text(ui->widgets.page_position), "10/10"));
     assert(lv_color_to_u32(lv_obj_get_style_text_color(ui->widgets.dual_value[0], 0)) ==
            lv_color_to_u32(lv_color_hex(GAUGE_GEAR_PARK)));
     capture(argv[1], "dual-arc-gear-rpm");

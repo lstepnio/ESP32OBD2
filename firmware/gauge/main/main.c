@@ -1320,7 +1320,6 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         ui_page_t page;
         page_ui(selected, &page);
         ui_set_page(ui, &page);
-        ui_set_page_position(ui, selected, page_count());
         atomic_store(&g_selected_page, selected);
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
@@ -1513,7 +1512,6 @@ void app_main(void)
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     if (lvgl_port_lock(portMAX_DELAY))
     {
-        ui_set_page_position(ui, g_config.cfg_idx, page_count());
         if (g_runtime)
         {
             ui_configure_page_action(ui, g_runtime->page_action);
@@ -1611,7 +1609,6 @@ void app_main(void)
                     ui_page_t page;
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
-                    ui_set_page_position(ui, command.value, page_count());
                     atomic_store(&g_selected_page, command.value);
                     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
@@ -1890,7 +1887,6 @@ void app_main(void)
                 ui_page_t page;
                 page_ui(selected, &page);
                 ui_set_page(ui, &page);
-                ui_set_page_position(ui, selected, page_count());
                 atomic_store(&g_selected_page, selected);
                 ble_companion_selection_applied(selected);
                 atomic_store(&g_page_activity_ms, now_ms);

@@ -25,12 +25,6 @@ static void review_frame(ui_t *ui, const char *directory, const char *name, unsi
     if (rendered_y != y)
         fprintf(stderr, "%s: expected footer at %u, got %u\n", name, y, rendered_y);
     assert(rendered_y == y);
-    if (y == FOOTER_STACKED_Y)
-    {
-        lv_area_t dots;
-        lv_obj_get_coords(ui->widgets.page_dots[0], &dots);
-        assert(gy(y + 6) + px(FOOTER_DOT_GAP) < dots.y1);
-    }
     static const uint32_t colors[] = {0x8b9a9d, 0x538dbb, 0x5d9f78, 0x9382b4};
     int                   x        = 128;
     for (unsigned links = expected_links; links; links &= links - 1)
@@ -42,9 +36,9 @@ static void review_frame(ui_t *ui, const char *directory, const char *name, unsi
             assert(y && footer_color_at(x, y, colors[i]));
             x += 16;
         }
-        else if (y)
+        else
             for (unsigned sample = 96; sample <= 144; sample += 8)
-                assert(!footer_color_at(sample, y, colors[i]));
+                assert(!footer_color_at(sample, FOOTER_Y, colors[i]));
     }
     capture(directory, name);
 }
@@ -69,32 +63,33 @@ static void review_connections(const char *directory)
     assert(!atomic_load(&ui->connection_links));
     review_frame(ui, directory, "01-splash-waiting", 0, 0);
     ui_set_connection_status(ui, false, true, false, 0);
-    review_frame(ui, directory, "02-splash-phone-connected", FOOTER_SINGLE_Y, 2);
+    review_frame(ui, directory, "02-splash-phone-connected", FOOTER_Y, 2);
     ui_set_connection_status(ui, true, false, true, 0);
-    review_frame(ui, directory, "03-splash-wifi-connected", FOOTER_SINGLE_Y, 1);
+    review_frame(ui, directory, "03-splash-wifi-connected", FOOTER_Y, 1);
+    ui_set_connection_status(ui, false, false, false, 0);
+    review_frame(ui, directory, "04-splash-links-cleared", 0, 0);
     ui_waiting_logo_enable(ui, false);
 
     const struct
     {
         const char   *name;
         ui_renderer_t renderer;
-        unsigned      pages, adapters, ready;
+        unsigned      adapters, ready;
         bool          phone, wifi, sample;
     } cases[] = {
-        {"04-numeric-single-obd", UI_RENDERER_NUMERIC, 1, 1, 1, false, false, true},
-        {"05-numeric-single-phone", UI_RENDERER_NUMERIC, 1, 1, 1, true, false, true},
-        {"06-numeric-stacked-dual-obd", UI_RENDERER_NUMERIC, 5, 2, 3, true, false, true},
-        {"07-numeric-stacked-child-lost", UI_RENDERER_NUMERIC, 5, 2, 1, true, false, true},
-        {"08-numeric-stacked-primary-lost", UI_RENDERER_NUMERIC, 5, 2, 2, true, false, false},
-        {"09-numeric-page-counter", UI_RENDERER_NUMERIC, 10, 2, 3, true, false, true},
-        {"10-arc-single", UI_RENDERER_ARC, 1, 1, 1, false, false, true},
-        {"11-arc-stacked", UI_RENDERER_ARC, 5, 2, 3, false, false, true},
-        {"12-bar-stacked", UI_RENDERER_BAR, 5, 1, 1, true, false, true},
-        {"13-trend-stacked", UI_RENDERER_TREND, 5, 2, 3, true, false, true},
-        {"14-dual-single", UI_RENDERER_DUAL, 1, 2, 3, false, false, true},
-        {"15-dual-arc-stacked", UI_RENDERER_DUAL_ARC, 5, 2, 3, false, false, true},
-        {"16-dual-arc-page-counter", UI_RENDERER_DUAL_ARC, 12, 2, 3, true, false, true},
-        {"17-numeric-wifi-maintenance", UI_RENDERER_NUMERIC, 5, 2, 0, true, true, false},
+        {"05-numeric-obd", UI_RENDERER_NUMERIC, 1, 1, false, false, true},
+        {"06-numeric-phone-obd", UI_RENDERER_NUMERIC, 1, 1, true, false, true},
+        {"07-numeric-both-obd", UI_RENDERER_NUMERIC, 2, 3, true, false, true},
+        {"08-numeric-child-lost", UI_RENDERER_NUMERIC, 2, 1, true, false, true},
+        {"09-numeric-primary-lost", UI_RENDERER_NUMERIC, 2, 2, true, false, false},
+        {"10-numeric-no-links", UI_RENDERER_NUMERIC, 2, 0, false, false, true},
+        {"11-arc-obd", UI_RENDERER_ARC, 1, 1, false, false, true},
+        {"12-arc-dual-obd", UI_RENDERER_ARC, 2, 3, false, false, true},
+        {"13-bar", UI_RENDERER_BAR, 1, 1, true, false, true},
+        {"14-trend", UI_RENDERER_TREND, 2, 3, true, false, true},
+        {"15-dual", UI_RENDERER_DUAL, 2, 3, false, false, true},
+        {"16-dual-arc", UI_RENDERER_DUAL_ARC, 2, 3, false, false, true},
+        {"17-numeric-wifi-maintenance", UI_RENDERER_NUMERIC, 2, 0, true, true, false},
     };
     const ui_metric_t engine_speed = page.metrics[0];
     double            rpm = 2840, coolant = 92;
@@ -108,7 +103,6 @@ static void review_connections(const char *directory)
         ui_set_value(ui, 12, cases[i].sample ? &rpm : NULL);
         ui_set_value(ui, 5, &coolant);
         ui_set_page(ui, &page);
-        ui_set_page_position(ui, cases[i].pages > 8 ? 9 : 0, cases[i].pages);
         ui_set_connection_status(ui, cases[i].wifi, cases[i].phone, cases[i].adapters > 1, cases[i].ready);
         if (page.renderer == UI_RENDERER_TREND)
             for (unsigned step = 0; step < 60; ++step)
@@ -117,9 +111,8 @@ static void review_connections(const char *directory)
                 ui_set_value(ui, 12, &value);
                 tick(500);
             }
-        bool     crowded = temperature_arc || page.renderer == UI_RENDERER_BAR || page.renderer == UI_RENDERER_TREND;
-        unsigned y = cases[i].pages == 1 ? FOOTER_SINGLE_Y : cases[i].pages <= 8 && !crowded ? FOOTER_STACKED_Y : 0;
-        unsigned expected = y ? (cases[i].wifi ? 1U : 0U) | (cases[i].phone ? 2U : 0U) | (cases[i].ready << 2) : 0;
+        unsigned expected = (cases[i].wifi ? 1U : 0U) | (cases[i].phone ? 2U : 0U) | (cases[i].ready << 2);
+        unsigned y        = expected ? FOOTER_Y : 0;
         review_frame(ui, directory, cases[i].name, y, expected);
     }
 

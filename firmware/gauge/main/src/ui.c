@@ -134,7 +134,6 @@ struct _ui_t
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
         *command_button_text, *command_ring;
-    lv_obj_t   *command_dots[4];
     uint8_t     command_page, command_request_page, command_page_count, command_pages[4];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
     int16_t     command_x, command_y;
@@ -175,7 +174,6 @@ struct _ui_t
     atomic_bool        showcase_active;
     atomic_uint        showcase_generation, showcase_sequence, showcase_packed, showcase_started;
     ui_page_t          showcase_page;
-    unsigned           page_index, page_count;
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
     atomic_uint connection_links;
     unsigned    rendered_connections;
@@ -220,7 +218,6 @@ struct _ui_t
         lv_obj_t *diagnostics_lbl;
         lv_obj_t *diagnostics_icon, *alert_icon, *alert_arrow, *demo_lbl, *dual_divider;
         lv_obj_t *dual_unit[2];
-        lv_obj_t *page_dots[8], *page_position;
         lv_obj_t *arc;
         lv_obj_t *bar;
         lv_obj_t *trend;
@@ -1556,26 +1553,6 @@ static void render_status(ui_t *ui)
     }
     bool demo = atomic_load(&ui->showcase_active) || ui->simulated || alert.simulated;
     show(ui->widgets.demo_lbl, demo && !atomic_load(&ui->showcase_active));
-    bool position = !condition && !demo && !alert.attention && !ui->action.progress && !ui->action_enter_pending;
-    for (unsigned i = 0; i < 8; i++)
-    {
-        bool dot = position && ui->page_count <= 8 && ui->page_count > 1 && i < ui->page_count;
-        show(ui->widgets.page_dots[i], dot);
-        if (dot)
-        {
-            lv_obj_set_pos(ui->widgets.page_dots[i], gx(120) - (int)ui->page_count * px(4) + (int)i * px(8) + px(2),
-                           gy(210));
-            lv_obj_set_style_bg_color(ui->widgets.page_dots[i],
-                                      lv_color_hex(i == ui->page_index ? color_text_primary : color_track), 0);
-        }
-    }
-    show(ui->widgets.page_position, position && ui->page_count > 8);
-    if (position && ui->page_count > 8)
-    {
-        char p[24];
-        snprintf(p, sizeof(p), "%u/%u", ui->page_index + 1, ui->page_count);
-        small_label(ui->widgets.page_position, p, gx(120), gy(213), px(48));
-    }
     bool overlay = alert.attention && !ui->pairing_visible && !ui->calibration_mode;
     show(ui->widgets.alert_overlay, overlay);
     if (overlay)
@@ -1624,10 +1601,8 @@ static void acknowledge_alert(lv_event_t *event)
 #if EGAUGE_FEATURE_CONNECTION_FOOTER
 enum
 {
-    FOOTER_SINGLE_Y    = 219,
-    FOOTER_STACKED_Y   = 192,
-    FOOTER_READING_GAP = 10,
-    FOOTER_DOT_GAP     = 8
+    FOOTER_Y           = 215,
+    FOOTER_READING_GAP = 10
 };
 
 /* Each glyph is a set of short line segments in the 240 px design grid. */
@@ -1693,9 +1668,6 @@ static bool footer_clear(const ui_t *ui, const lv_area_t *area)
     for (unsigned i = 0; i < sizeof(protected) / sizeof(protected[0]); ++i)
         if (footer_overlaps(protected[i], area, px(FOOTER_READING_GAP)))
             return false;
-    for (unsigned i = 0; i < sizeof(ui->widgets.page_dots) / sizeof(ui->widgets.page_dots[0]); ++i)
-        if (footer_overlaps(ui->widgets.page_dots[i], area, px(FOOTER_DOT_GAP)))
-            return false;
     return true;
 }
 
@@ -1711,8 +1683,7 @@ static bool connection_footer_allowed(const ui_t *ui)
     ui_diagnostics_t diagnostics = visible_diagnostics(ui);
     return !ui->pairing_visible && !ui->calibration_mode && !ui->command_menu_visible && !ui->rendered_alert.severity &&
            !ui->rendered_alert.attention && !(diagnostics.valid && (diagnostics.mil_on || diagnostics.count)) &&
-           !ui->action.progress && !ui->action_enter_pending && !ui->simulated && !atomic_load(&ui->showcase_active) &&
-           (ui->waiting_visible || ui->page_count <= 8);
+           !ui->action.progress && !ui->action_enter_pending && !ui->simulated && !atomic_load(&ui->showcase_active);
 }
 
 static void draw_connection_footer(lv_event_t *event)
@@ -1761,7 +1732,7 @@ static void render_connection_footer(ui_t *ui)
     unsigned y     = 0;
     if (links && connection_footer_allowed(ui))
     {
-        y              = ui->waiting_visible || ui->page_count <= 1 ? FOOTER_SINGLE_Y : FOOTER_STACKED_Y;
+        y              = FOOTER_Y;
         lv_area_t area = connection_footer_area(y);
         if (!gauge_presentation_fits(area.x1, area.y1, area.x2, area.y2))
             y = 0;
@@ -2104,14 +2075,7 @@ static void ui_init_screen(ui_t *ui, ui_page_t const *page, uint32_t interval_ms
     lv_obj_set_pos(ui->widgets.dual_divider, gx(50), gy(120));
     lv_obj_set_style_bg_color(ui->widgets.dual_divider, lv_color_hex(color_track), 0);
     lv_obj_set_style_bg_opa(ui->widgets.dual_divider, LV_OPA_COVER, 0);
-    for (unsigned i = 0; i < 8; i++)
-    {
-        ui->widgets.page_dots[i] = plain_view(gauge_content, 4, 4);
-        lv_obj_set_style_radius(ui->widgets.page_dots[i], px(2), 0);
-        lv_obj_set_style_bg_opa(ui->widgets.page_dots[i], LV_OPA_COVER, 0);
-    }
-    ui->widgets.page_position = plain_label(gauge_content, color_text_secondary);
-    ui->widgets.pairing_lbl   = plain_view(scr, 240, 240);
+    ui->widgets.pairing_lbl = plain_view(scr, 240, 240);
     lv_obj_set_size(ui->widgets.pairing_lbl, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(ui->widgets.pairing_lbl, lv_color_hex(color_background), 0);
     lv_obj_set_style_bg_opa(ui->widgets.pairing_lbl, LV_OPA_COVER, 0);
@@ -2258,7 +2222,6 @@ ui_t *ui_init(ui_page_t const    *page,
     atomic_init(&ui->showcase_sequence, 0);
     atomic_init(&ui->showcase_packed, 0);
     atomic_init(&ui->showcase_started, 0);
-    ui->page_count = 1;
     atomic_init(&ui->action_allowed, false);
     atomic_init(&ui->action_pending, false);
     atomic_init(&ui->action_context_epoch, 0);
@@ -2596,14 +2559,6 @@ void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, bool child_config
 }
 #endif
 
-void ui_set_page_position(ui_t *ui, unsigned index, unsigned count)
-{
-    if (!ui || !count || index >= count)
-        return;
-    ui->page_count   = count;
-    ui->page_index   = index;
-    ui->status_dirty = true;
-}
 bool ui_request_showcase(ui_t    *ui,
                          bool     enabled,
                          uint8_t  seconds,
@@ -3011,13 +2966,6 @@ static void refresh_vehicle_menu(ui_t *ui)
         lv_obj_add_state(ui->command_button, LV_STATE_DISABLED);
     /* Quiet transitions share this face. The arc remains only for critical attention. */
     show(ui->command_ring, false);
-    for (unsigned i = 0; i < 4; ++i)
-    {
-        lv_obj_set_pos(ui->command_dots[i], gx(120 - (int)ui->command_page_count * 6 + (int)i * 12 + 4), gy(211));
-        show(ui->command_dots[i], ui->command_page_count > 1 && i < ui->command_page_count);
-        lv_obj_set_style_bg_color(ui->command_dots[i],
-                                  lv_color_hex(i == ui->command_page ? color_text_primary : color_track), 0);
-    }
     if (ui->status_dirty)
         render_status(ui);
     if (ui->command_layer_dirty)
@@ -3219,13 +3167,6 @@ void ui_show_vehicle_actions(ui_t *ui)
         lv_obj_set_style_line_width(chevron, px(2), 0);
         lv_obj_center(chevron);
         lv_obj_remove_flag(chevron, LV_OBJ_FLAG_CLICKABLE);
-        for (unsigned i = 0; i < 4; ++i)
-        {
-            ui->command_dots[i] = plain_view(ui->command_menu, 4, 4);
-            lv_obj_set_style_radius(ui->command_dots[i], px(2), 0);
-            lv_obj_set_style_bg_opa(ui->command_dots[i], LV_OPA_COVER, 0);
-            lv_obj_set_pos(ui->command_dots[i], px(106 + i * 12), px(211));
-        }
         ui->command_button = plain_view(ui->command_menu, 152, 48);
         lv_obj_align(ui->command_button, LV_ALIGN_TOP_MID, 0, px(150));
         lv_obj_set_style_radius(ui->command_button, px(12), 0);

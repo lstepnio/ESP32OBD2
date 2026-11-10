@@ -22,8 +22,9 @@ cycling page influence scheduling, not cache identity or observation timestamps.
 The negotiated `mp` limit controls deployment. Legacy document gauges default to
 eight; older fallback configurations retain their existing limits. Editing ten
 pages offline is allowed, but deployment to an older gauge is rejected before
-transfer. Never silently drop pages. Up to eight pages retain the existing dots;
-nine or ten use a compact page counter without allocating additional dots.
+transfer. Never silently drop pages. Reading and action screens keep the lower
+edge free of page markers. Swipe navigation and page cycling continue to use
+the saved page order.
 
 ## Dual + arc
 
@@ -104,11 +105,10 @@ automatically and shows a switch only after supported firmware confirms it.
 See the [protected settings protocol](../protocol/experimental-firmware-transfers.md#connection-icons).
 Transport, polling, and alert behavior are independent of the preference.
 
-The same symbols sit below the waiting logo or a reading with a free footer.
-On multipage readings the icons sit above the ordinary page dots,
-with clearance from both the reading and the dots. A tight layout drops the
-icons and keeps its reading and page indicator in place. Page counters, pairing,
-calibration, showcase, action controls, and vehicle warnings take priority.
+A single centered row sits low in the round safe area on the waiting logo and
+reading screens, independent of how many pages are saved. A tight layout drops
+the icons and keeps the reading in place. Pairing, calibration, showcase,
+action controls, and vehicle warnings take priority.
 The compositor uses one packed status snapshot, fixed stroke geometry, and
 bounded footer invalidation. No persistent image buffer or transport task is
 added. The first boot-logo frame can render before connection state is known.
