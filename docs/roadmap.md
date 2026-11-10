@@ -90,9 +90,9 @@ publication alone.
 
 ## Product boundaries
 
-Android and the autonomous gauge are the implemented platform. A basic iOS
-companion and browser-over-USB core configuration are planned under PLATFORM-01
-and PLATFORM-02. iOS targets essential setup/use, not Android feature parity;
+The mobile companion launches on Android. A basic iOS companion is the next
+mobile platform under PLATFORM-01. Browser-over-USB core configuration is
+planned under PLATFORM-02. iOS targets essential setup and use;
 some phone integrations will remain Android-only, and police/road-alert availability
 may differ by platform/provider. USB configuration targets a supported desktop
 browser so core gauge setup does not require a smartphone App. The existing

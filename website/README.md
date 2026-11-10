@@ -209,9 +209,14 @@ installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
 and [enclosed AMOLED photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg).
-The shop pairs a face-on and angled view for each board. CSS aligns the
-reference firmware's existing circular screen renders with the board faces.
-The OLED views illustrate shared eGauge layouts using the same public captures.
+The shop pairs a face-on and angled view for each board. The comparison uses
+the nominal panel diameters, 1.28″ and 1.75″, for relative scale. Both panels use
+matched example readings rendered by their own production UI profiles. The
+OLED entries in [capture provenance](../docs/assets/gauge/capture-provenance.json)
+record the storefront PNGs, including the Balanced startup mark and connected
+reading. The [firmware policy](../docs/architecture/platforms-and-releases.md#platform-feature-flags)
+owns the differences between free LCD and licensed OLED builds. Keep the private integration
+sources, firmware, and raw captures outside this website.
 The front LCD bezel and OLED tilt are browser illustrations. Confirm photo reuse
 for commercial publication or replace the cutouts with original photographs.
 
@@ -219,8 +224,9 @@ for commercial publication or replace the cutouts with original photographs.
 
 `storefront.json` owns the USD item prices. The public build rejects any non-null
 checkout setting. Each gauge button opens the existing inquiry form. Both gauge
-prices exclude the adapter. The main page shows the Vgate as a separately priced
-add-on for either gauge, and customers can reuse a compatible BLE adapter. Stripe
+prices exclude the adapter. The Vgate add-on has a separate price for each gauge
+order. The LCD supports one connected adapter. Customers can also reuse a
+compatible BLE adapter. Stripe
 Payment Links are created separately in the sandbox and kept out of the webroot.
 
 1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax

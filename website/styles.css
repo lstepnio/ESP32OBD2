@@ -73,8 +73,30 @@
 
 .action-screen-examples figcaption{text-align:center;font-size:13px;margin-top:12px;color:#d1d9c9}
 
+.panel-compare{--oled-panel:min(222px,24vw);margin-top:26px;padding:clamp(17px,3.5vw,36px);border:1px solid var(--line);border-radius:8px;background:radial-gradient(ellipse at 62% 58%,#d3dec9,#e6eadf)}
+.panel-compare-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 28px;align-items:end}
+.panel-compare h3{font-size:clamp(23px,3vw,35px);font-weight:500;letter-spacing:-.035em;margin:6px 0}
+.panel-compare-head p:not(.eyebrow){margin:0;color:var(--muted);max-width:54ch;line-height:1.5}
+.panel-examples{display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0;margin:0}
+.panel-examples legend{font-size:13px;color:var(--muted);margin-bottom:5px}
+.panel-examples label{display:flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:#f1f1e9;font-size:13px;cursor:pointer}
+.panel-examples input{accent-color:#305b42}
+.panel-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:850px;margin:12px auto 0}
+.panel-pair figure{margin:0;min-width:0;text-align:center}
+/* Keep the LCD and OLED screen diameters in the ratio 1.28 / 1.75. */
+.panel-lcd{--panel:calc(var(--oled-panel) * .7314285714)}
+.panel-oled{--panel:var(--oled-panel)}
+.panel-stand{display:grid;place-items:center;height:calc(var(--oled-panel) * 1.43)}
+.panel-pair .store-device{width:calc(var(--panel) / .64);margin:0}
+.panel-pair .store-device .store-device-screen{width:var(--panel)}
+.panel-pair figcaption strong,.panel-pair figcaption span{display:block}
+.panel-pair figcaption strong{font-size:clamp(16px,2.3vw,24px)}
+.panel-pair figcaption span,.panel-scale-note{font-size:13px;color:var(--muted);margin-top:4px}
+.panel-scale-note{text-align:center;margin-bottom:0}
+
 .store-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:26px}
 .store-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.store-card-featured{border-color:#789071}
 .store-art{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:12px clamp(9px,2vw,22px);background:radial-gradient(ellipse at center,#e9eddf,#d5ddcb)}
 .store-art-oled{background:radial-gradient(ellipse at center,#c5d3ba,#a8bb9d)}
 .store-art figure{min-width:0;margin:0;text-align:center;perspective:500px}
@@ -86,13 +108,15 @@
 .store-device-lcd-front::after{content:"";position:absolute;bottom:9%;left:42%;width:16%;height:6%;border:1px solid #8d9496;border-radius:4px;background:#283137;z-index:-1}
 .store-device-lcd-front .store-device-screen{width:65%;left:50%;top:50%}
 .store-device-lcd-angle .store-device-screen{width:65%;left:51.2%;top:45.6%;transform:translate(-50%,-50%) rotate(-7deg) scaleY(.73)}
-.store-device-tilted{transform:rotateX(32deg) rotateY(-25deg) rotateZ(9deg);filter:drop-shadow(4px 7px 0 #202723) drop-shadow(4px 9px 7px #15211450)}
+.store-device-tilted{transform:rotateX(27deg) rotateY(-19deg) rotateZ(4deg);filter:drop-shadow(1px 2px 0 #252c27) drop-shadow(0 9px 8px #15211442)}
 .store-copy{display:flex;flex:1;flex-direction:column;padding:clamp(20px,4vw,38px)}
 .store-copy h3{font-size:clamp(24px,3vw,35px);font-weight:500;letter-spacing:-.04em;margin:7px 0 14px}
 .store-copy>p:not(.eyebrow){color:var(--muted);line-height:1.6;margin:0 0 20px}
+.store-highlights{margin:0 0 22px;padding-left:19px;color:var(--muted);line-height:1.55}
+.store-highlights li+li{margin-top:5px}
 .store-price{margin:0 0 22px;color:var(--muted)}
 .store-price p{margin:0;line-height:1.6}
-.store-price strong,.store-addon-price strong{color:var(--ink);font-size:24px;font-weight:600}
+.store-price strong,.store-addon-prices strong{color:var(--ink);font-size:24px;font-weight:600}
 .store-price strong{margin-right:6px}
 .store-actions{display:grid;justify-items:start;gap:10px;margin-top:auto}
 .store-actions .button{gap:14px}
@@ -101,6 +125,9 @@
 .store-addon{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 24px;margin-top:18px;padding:clamp(18px,3vw,28px);border:1px solid var(--line);border-radius:8px}
 .store-addon h3{font-size:20px;font-weight:600;margin:5px 0}
 .store-addon p:not(.eyebrow){margin:0;color:var(--muted);line-height:1.5}
+.store-addon-prices{display:grid;gap:8px}
+.store-addon-prices p{display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 10px}
+.store-addon-prices a{font-size:13px;text-decoration:underline;text-underline-offset:3px}
 .store-addon+.section-note{margin-top:12px;font-size:14px}
 .store-comparison{margin-top:36px;border:1px solid var(--line);border-radius:8px;overflow-x:auto}
 .store-comparison:focus-visible{outline:3px solid #8f6424;outline-offset:3px}
