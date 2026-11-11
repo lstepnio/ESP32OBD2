@@ -5,6 +5,7 @@ from pathlib import Path
 
 CATALOG = Path(__file__).resolve().parents[1] / "website/storefront.json"
 ADAPTER = "vgate"
+ADAPTER_BY_OFFER = {"lcd": "vgate_lcd", "oled": ADAPTER}
 ADAPTER_NAME = "Vgate iCar Pro BLE OBD-II adapter"
 US_SHIPPING_CENTS = 995
 OFFERS = {
@@ -17,7 +18,7 @@ def storefront_catalog(path=CATALOG):
     settings = json.loads(path.read_text())
     if (
         not isinstance(settings, dict)
-        or set(settings) != {*OFFERS, ADAPTER}
+        or set(settings) != {*OFFERS, *ADAPTER_BY_OFFER.values()}
         or any(
             not isinstance(offer, dict)
             or set(offer) != {"amountCents", "checkout"}
@@ -28,6 +29,6 @@ def storefront_catalog(path=CATALOG):
         )
     ):
         raise ValueError(
-            "Expected two USD gauge offers and one add-on price with public checkout disabled"
+            "Expected two USD gauge offers and their add-on prices with public checkout disabled"
         )
     return {key: value["amountCents"] for key, value in settings.items()}

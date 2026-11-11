@@ -252,6 +252,8 @@ class WebsiteMetadataTests(unittest.TestCase):
             html = (output / "index.html").read_text()
             prefix = manifest["assetPrefix"]
             self.assertIn('id="panel-compare"', html)
+            self.assertLess(html.index('id="oled-bundle"'), html.index("<h3>S3-LCD-1.28 v1"))
+            self.assertLess(html.index("<h3>S3-LCD-1.28 v1"), html.index('id="panel-compare"'))
             for layout in ("arc", "dual-arc", "startup"):
                 lcd = "lcd-startup" if layout == "startup" else layout
                 self.assertIn(f'data-lcd-src="{prefix}/gauge/{lcd}.png"', html)
