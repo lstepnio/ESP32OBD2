@@ -65,11 +65,12 @@ Red stays reserved for critical attention. Shared alert presentation keeps prior
 After NVS display preferences load, the board initializes and presents the logo
 before heavier configuration/radio setup. It uses four retained LVGL objects
 (container, arc, line and dot), with no bitmap, additional framebuffer or animation
-task. Saved brightness and the manual angle (or last checkpointed applied angle in Auto) apply at startup. The logo has no text.
+task. A board adapter can decorate the boot layer under the display lock after
+panel power-on. Decorations inherit its visibility and must not intercept touch. Saved brightness and the manual angle (or last checkpointed applied angle in Auto) apply at startup. The reference logo has no text.
 The reference mark spans 168 pixels on the 240-pixel LCD. Presentation profiles
 can tune the mark's proportions on the shared 240-pixel design grid. The OLED
 Balanced profile uses a 148-pixel diameter and a 9-pixel ring stroke on that grid,
-with a shorter needle that clears the ring. Both use muted neutral gray
+with a shorter needle that clears the ring. The reference splash and steady waiting marks use muted neutral gray
 (`#555555`) and the same retained objects and point buffer.
 
 With no valid vehicle observation, it stays until touch or data. After observations
