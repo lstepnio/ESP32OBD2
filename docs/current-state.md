@@ -1,6 +1,6 @@
 # Current implementation and evidence
 
-Updated 2026-11-09. This is the current source/device snapshot, not a delivery diary.
+Updated 2026-11-10. This is the current source/device snapshot, not a delivery diary.
 The [backlog](backlog.md) owns next acceptance outcomes; the [roadmap](roadmap.md)
 owns their order. Recheck the active branch, CI and device owner before delivery.
 
@@ -8,28 +8,26 @@ owns their order. Recheck the active branch, CI and device owner before delivery
 
 | Item | Latest recorded state | Evidence and limits |
 | --- | --- | --- |
-| Pixel | App dev.58 / code 58 | [Combined delivery](evidence/dev81-combined-delivery.md); installed APK hash verified, setup/history preserved |
-| Gauge | Signed dev.81 from `a129798`, healthy OTA; ELF `165bb38e4edfdd8653148a82a26525980a77b73ce1edf12bcc6f83f799061f6e` | Full App/Wi-Fi upload, two maintenance cycles, automatic connection/resume and cached readback passed in [delivery evidence](evidence/dev81-combined-delivery.md) |
-| Saved setup | Revision 66, whole-vehicle ECM + child-TCM dashboard, four TCM code filters | Settings/profiles/command records retained; 90 events, 67 episodes, 18 configuration contexts preserved in the delivery comparison |
-| Physical UI | Latest owner confirmation remains dev.80: clean navigation, first-configured-action entry and consistent Connecting styling | [Dev.80](evidence/dev80-action-entry.md); dev.81 panel/navigation confirmation and loaded vehicle UX remain separate |
-| Retained command uncertainty | ABS/TCS Unknown, operation 1; Burnout inactive | No Restore, reset confirmation or vehicle command was sent in the indoor delivery |
-| Hardware / vehicle | Waveshare ESP32-S3-Touch-LCD-1.28; modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800, two same-model BLE adapters | Reference hardware only; controller/vehicle definitions remain calibration-specific |
+| Pixel | App dev.58 / code 58 rebuilt from main `4f36ef2`, including the sunset-location recovery fix | [Device refresh](evidence/development-device-refresh.md); installed APK digest and existing signer verified; setup and history retained |
+| Gauge | LCD signed dev.86; private OLED Balanced `0.2.0-dev.84-amoled.2-w15`; both healthy | Exact authenticated ELF hashes match verified signed artifacts. Existing images retained; no reflash or release publication was necessary |
+| Saved setup | LCD dashboard revision 68; OLED revision 7; Day 100%, Night 10%, Connection icons On | Both dashboard revisions/hashes unchanged; App toggle Off/On and automatic settings readback passed. OLED Night corrected from 20% to 10% |
+| Physical UI | Owner confirmed clean dot-free layouts and working swipes on both boards; OLED button brightened then dimmed | OLED Balanced retained. Earlier 10% icon legibility accepted; vehicle OBD2 icon loss/return remains pending |
+| Retained recovery | No vehicle controls, Restore/reset confirmation or recovery-record clearing performed | Phone update journal clear; exact firmware health verified. This session does not establish vehicle-control restoration |
+| Hardware / vehicle | S3-LCD-1.28 v1 and S3-OLED-1.75 v1; modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800 | Reference LCD uses the public development path; OLED firmware remains private. Controller/vehicle definitions remain calibration-specific |
 
-These are the latest recorded observations, not live polling. Device access and the
-original Android wake/notification policies were released/restored after delivery.
-PRs #126, #127 and #128 are merged through main `f4fc353`. The combined signed
-App/Wi-Fi delivery preserved revision 66, settings, profiles and retained recovery.
+These are recorded observations, not live polling. Private setup backups and signed
+OLED artifacts remain outside the public repository. [Earlier dev.81 delivery](evidence/dev81-combined-delivery.md)
+retains its original setup/history and recovery observations; those are not the
+current device baseline.
 
 ## Latest merged delivery
 
-PR #128 adds the [product delivery framework](documentation.md#product-quality-and-public-story)
-and the approved CODE-06 through CODE-09 follow-up. Per-action observation receipts replace
-the shared freshness timestamp; storage/queue fixtures and admission telemetry,
-compact current context, and source-aware public claims/screenshots are
-implemented and verified offline. [Implementation evidence](evidence/product-quality-implementation.md)
-records source checks; [dev.81 delivery](evidence/dev81-combined-delivery.md) records
-the installed App/FW pair and read-only indoor acceptance. Retired-callback faults,
-flash interruption, loaded radio and vehicle-control restoration remain distinct gates.
+Main `4f36ef2` passed all four quality lanes. The App includes sunset-location
+recovery from PR #157; LCD dev.86 enables the connection footer from PR #155.
+The private OLED remains on its approved Balanced integration and shared core pin.
+The [refresh evidence](evidence/development-device-refresh.md) records build checks,
+exact installed identity, preservation comparisons and bounded repository cleanup.
+No stable-channel migration or unfinished feature branch was included.
 
 ## Implemented product
 
@@ -65,7 +63,7 @@ JScan toggle plus restart restored it. Installed source adds explicit captured R
 before reset and retains an acknowledged-Return receipt across gauge reboot. A
 positive reply is request acceptance, not physical restoration. Verify normal dash/
 braking and explicit owner reset confirmation under the [parked runbook](development/jeep-action-qualification.md#brake-actions-follow-up).
-Do not clear the current Unknown marker to make the UI appear ready.
+Do not clear an unresolved recovery marker to make the UI appear ready.
 
 ## Raised-idle coolant guard
 
@@ -102,8 +100,10 @@ owns details. Parked thermal/fallback and real compressor calibration remain ope
 
 ## Immediate qualification and delivery context
 
-Use backlog FEATURE-04 and QUAL-04/08 for parked Restore/reset, independent loaded
-recovery and swapped ports. QUAL-02 owns configuration/OTA interruption; QUAL-07/13
+Next at the Jeep, verify the live OBD2 footer on both boards: independent loss/return
+and unaffected sibling behavior on the OLED. Use one gauge at a time so they do not
+compete for the same adapters. Use backlog FEATURE-04 and QUAL-04/08 for parked
+Restore/reset, independent loaded recovery and swapped ports. QUAL-02 owns configuration/OTA interruption; QUAL-07/13
 own physical rendering/gesture acceptance. Offline changes never close those gates.
 The website published `13eef6b` on 2026-10-30 after all four CI lanes passed.
 [Delivery evidence](evidence/product-quality-implementation.md#public-preview-and-handoff)
