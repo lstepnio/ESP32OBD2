@@ -57,7 +57,7 @@ class SandboxFixture:
             if path == "/v1/shipping_rates":
                 return result | {"id": "shr_ground"}
             if path == "/v1/products":
-                key = {19900: "oled", 7900: "lcd", 5500: "vgate"}[
+                key = {19900: "oled", 7900: "lcd", 5500: "vgate", 3000: "vgate_lcd"}[
                     data["default_price_data[unit_amount]"]
                 ]
                 return result | {"default_price": "price_" + key}
@@ -84,7 +84,7 @@ class StripeStorefrontTest(unittest.TestCase):
         self.state = setup(self.stripe, self.root / "checkout.json", storefront_catalog(), 995)
 
     def test_setup_tax_shipping_and_idempotency(self):
-        self.assertEqual(len(self.stripe.writes), 6)
+        self.assertEqual(len(self.stripe.writes), 7)
         for path, params, idempotency in self.stripe.writes:
             self.assertTrue(idempotency.startswith("egauge-"))
             if path == "/v1/payment_links":
@@ -92,12 +92,16 @@ class StripeStorefrontTest(unittest.TestCase):
                 self.assertEqual(params["shipping_address_collection[allowed_countries][0]"], "US")
                 self.assertEqual(params["shipping_options[0][shipping_rate]"], "shr_ground")
                 self.assertEqual(params["payment_method_types[0]"], "card")
-                self.assertEqual(params["optional_items[0][price]"], "price_vgate")
+                expected_add_on = {"oled": "price_vgate", "lcd": "price_vgate_lcd"}
+                self.assertEqual(
+                    params["optional_items[0][price]"],
+                    expected_add_on[params["metadata[egauge_offer]"]],
+                )
                 self.assertEqual(params["optional_items[0][quantity]"], 1)
         self.assertEqual(
             setup(self.stripe, self.root / "checkout.json", storefront_catalog(), 995), self.state
         )
-        self.assertEqual(len(self.stripe.writes), 6)
+        self.assertEqual(len(self.stripe.writes), 7)
         with self.assertRaises(ValueError):
             setup(self.stripe, self.root / "checkout.json", storefront_catalog(), 1000)
         self.stripe.tax_registrations = []

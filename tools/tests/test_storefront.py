@@ -17,6 +17,7 @@ class StorefrontTest(unittest.TestCase):
         self.assertEqual(actions["LCD_PRICE"], "$79 USD")
         self.assertEqual(actions["OLED_PRICE"], "$199 USD")
         self.assertEqual(actions["VGATE_PRICE"], "$55 USD")
+        self.assertEqual(actions["VGATE_LCD_PRICE"], "$30 USD")
         self.assertEqual(actions["US_SHIPPING_PRICE"], "$9.95 USD")
         self.assertNotIn("VGATE_ORDER", actions)
         self.assertIn('href="#custom-form"', actions["LCD_ORDER"])
@@ -38,6 +39,7 @@ class StorefrontTest(unittest.TestCase):
                                 "lcd": {"amountCents": 7900, "checkout": None},
                                 "oled": {"amountCents": 19900, "checkout": url},
                                 "vgate": {"amountCents": 5500, "checkout": None},
+                                "vgate_lcd": {"amountCents": 3000, "checkout": None},
                             }
                         )
                     )
