@@ -77,6 +77,8 @@ typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 // ---------------------------------------------------------------------------------------------------------------------
 
 /* Reused vector mark drawn as soon as the display is ready; no bitmap/framebuffer. */
+/* Call under the display lock after power-on to decorate the existing boot layer. */
+void ui_boot_logo_decorate(void (*decorate)(lv_obj_t *parent));
 void  ui_boot_logo_early(void);
 void  ui_waiting_logo_enable(ui_t *ui, bool enabled);
 ui_t *ui_init(ui_page_t const    *page,
