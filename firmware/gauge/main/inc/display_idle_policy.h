@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #define DISPLAY_IDLE_DATA_MS 60000U
-#define DISPLAY_IDLE_TOUCH_MS 15000U
+#define DISPLAY_IDLE_TOUCH_MS 3000U
 typedef struct
 {
     uint32_t last_data, last_touch;
