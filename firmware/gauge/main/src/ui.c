@@ -224,12 +224,15 @@ struct _ui_t
         lv_obj_t *dual_info[2];
     } widgets;
 
-    display_idle_policy_t idle;
-    bool                  waiting_enabled, waiting_visible, wake_sequence;
-    atomic_uint           cycle_pause;
-    portMUX_TYPE          sample_lock;
-    ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
-    uint32_t              sample_continuity;
+    ui_wake_page_callback_t wake_page_cb;
+    display_idle_policy_t   idle;
+    bool                    waiting_enabled, waiting_visible, wake_sequence;
+    bool                    wake_page_pending, wake_data_started;
+    uint32_t                wake_data_at;
+    atomic_uint             cycle_pause;
+    portMUX_TYPE            sample_lock;
+    ui_sample_t             samples[EGAUGE_RUNTIME_PIDS];
+    uint32_t                sample_continuity;
     struct
     {
         bool     ready;
@@ -445,13 +448,19 @@ static lv_obj_t          *boot_logo;
 static ui_t              *boot_logo_ui;
 static bool               early_logo_touched;
 static lv_point_precise_t boot_needle[2];
-static void               boot_logo_touch(lv_event_t *event)
+static void               readings_touch(ui_t *ui)
+{
+    const bool disconnected = !adapter_status_ready_for(0) && !adapter_status_ready_for(1);
+    display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000), disconnected);
+}
+
+static void boot_logo_touch(lv_event_t *event)
 {
     (void)event;
     early_logo_touched = true;
     if (boot_logo_ui)
     {
-        display_idle_touch(&boot_logo_ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+        readings_touch(boot_logo_ui);
         boot_logo_ui->waiting_visible = false;
         boot_logo_ui->wake_sequence   = true;
         boot_logo_ui->status_dirty    = true;
@@ -519,10 +528,12 @@ void ui_waiting_logo_enable(ui_t *ui, bool enabled)
         return;
     if (enabled)
         ui_boot_logo_early();
-    ui->waiting_enabled = enabled;
-    boot_logo_ui        = enabled ? ui : NULL;
+    ui->wake_page_pending = enabled;
+    ui->wake_data_started = false;
+    ui->waiting_enabled   = enabled;
+    boot_logo_ui          = enabled ? ui : NULL;
     if (enabled && early_logo_touched)
-        display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+        readings_touch(ui);
     ui->waiting_visible = enabled && !ui->pairing_visible && !ui->idle.touched;
     if (boot_logo)
     {
@@ -536,12 +547,9 @@ void ui_waiting_logo_enable(ui_t *ui, bool enabled)
     }
 }
 
-static bool metric_sample(ui_t *ui, unsigned index, ui_sample_t *out)
+static bool metric_sample(ui_t *ui, const ui_metric_t *metric, ui_sample_t *out)
 {
-    if (index >= ui->display.page.metric_count)
-        return false;
-    const ui_metric_t *metric = &ui->display.page.metrics[index];
-    unsigned           source = metric->scoped ? metric->source_index : UINT8_MAX;
+    unsigned source = metric->scoped ? metric->source_index : UINT8_MAX;
     /* Check live transport truth as well as the worker fence. A disconnected
      * sample cannot reappear during the interval before the worker clears it. */
     if (metric->scoped &&
@@ -560,12 +568,27 @@ static bool metric_sample(ui_t *ui, unsigned index, ui_sample_t *out)
         if (metric->scoped)
             available = available && ui->sample_sources[source].ready && sample->revision == metric->revision &&
                         sample->generation == generation;
-        if (available)
+        if (available && out)
             *out = *sample;
         break;
     }
     portEXIT_CRITICAL(&ui->sample_lock);
     return available;
+}
+
+ui_page_readiness_t ui_page_readiness(ui_t *ui, const ui_page_t *page)
+{
+    unsigned ready = 0;
+    for (unsigned i = 0; i < page->metric_count; ++i)
+        ready += metric_sample(ui, &page->metrics[i], NULL);
+    if (!ready)
+        return UI_PAGE_EMPTY;
+    return ready == page->metric_count ? UI_PAGE_COMPLETE : UI_PAGE_PARTIAL;
+}
+
+void ui_set_wake_page_callback(ui_t *ui, ui_wake_page_callback_t callback)
+{
+    ui->wake_page_cb = callback;
 }
 
 bool ui_source_sample(ui_t     *ui,
@@ -901,7 +924,7 @@ static void ui_touch_callback(lv_event_t *e)
         }
     }
     if (code == LV_EVENT_PRESSED)
-        display_idle_touch(&ui->idle, (uint32_t)(esp_timer_get_time() / 1000));
+        readings_touch(ui);
     if (ui->command_menu_visible)
         return;
 #if CONFIG_EGAUGE_UI_PERFORMANCE_LOG
@@ -1080,7 +1103,7 @@ static void render_page(ui_t *ui)
         }
         else
         {
-            available[i] = metric_sample(ui, i, &samples[i]);
+            available[i] = metric_sample(ui, &page->metrics[i], &samples[i]);
             values[i]    = samples[i].value;
         }
     }
@@ -1963,11 +1986,28 @@ static void ui_task(lv_timer_t *timer)
                                     atomic_load(&ui->showcase_active) || ui->rendered_alert.severity ||
                                     (d.valid && (d.mil_on || d.count));
         bool             waiting  = display_idle_waiting(&ui->idle, available, newest, priority, now_ms);
+        if (!available)
+            ui->wake_data_started = false;
+        if (available && ui->wake_page_pending && ui->wake_page_cb && !priority && !ui->press_active)
+        {
+            if (!ui->wake_data_started)
+            {
+                ui->wake_data_at      = now_ms;
+                ui->wake_data_started = true;
+            }
+            const bool allow_partial = now_ms - ui->wake_data_at >= 1000U;
+            if (ui->wake_page_cb(ui, allow_partial))
+                ui->wake_page_pending = false;
+            else if (ui->waiting_visible)
+                waiting = true;
+        }
         if (waiting != ui->waiting_visible)
         {
             ui->waiting_visible = waiting;
             if (waiting)
             {
+                ui->wake_page_pending = true;
+                ui->wake_data_started = false;
                 lv_obj_remove_flag(boot_logo, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_move_foreground(boot_logo);
             }

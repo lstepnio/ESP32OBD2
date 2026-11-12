@@ -128,9 +128,11 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 // Global Variables
 // ---------------------------------------------------------------------------------------------------------------------
 
-static atomic_uchar          g_selected_page;
-static atomic_uint           g_local_page_generation;
-static atomic_uint           g_page_activity_ms;
+static atomic_uchar g_selected_page;
+static atomic_uint  g_local_page_generation;
+static atomic_uint  g_page_activity_ms;
+/* Paired with the manual generation under the LVGL lock. */
+static uint8_t               g_page_to_save;
 static config_runtime_t     *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool                  g_running_previous_config;
@@ -297,6 +299,39 @@ static void page_ui(unsigned index, ui_page_t *out)
                     .display_age_ms,
         };
     }
+}
+
+static bool select_wake_page(ui_t *ui, bool allow_partial)
+{
+    const uint8_t  current = atomic_load(&g_selected_page);
+    const unsigned count   = page_count();
+    ui_page_t      page;
+    page_ui(current, &page);
+    ui_page_readiness_t best     = ui_page_readiness(ui, &page);
+    uint8_t             selected = current;
+    for (unsigned i = 0; i < count && best != UI_PAGE_COMPLETE; ++i)
+    {
+        if (i == current)
+            continue;
+        page_ui(i, &page);
+        const ui_page_readiness_t ready = ui_page_readiness(ui, &page);
+        if (ready > best)
+        {
+            best     = ready;
+            selected = i;
+        }
+    }
+    if (best == UI_PAGE_EMPTY || (best == UI_PAGE_PARTIAL && !allow_partial))
+        return false;
+    if (selected != current)
+    {
+        page_ui(selected, &page);
+        ui_set_page(ui, &page);
+        atomic_store(&g_selected_page, selected);
+        ble_companion_selection_applied(selected);
+    }
+    atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+    return true;
 }
 
 typedef struct
@@ -1323,6 +1358,7 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         atomic_store(&g_selected_page, selected);
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
+        g_page_to_save = selected;
         atomic_fetch_add(&g_local_page_generation, 1);
         if (event_code == UI_EVENT_PAGE_ACTION)
             ui_action_applied(ui);
@@ -1438,6 +1474,7 @@ static void init_config(void)
     ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
     g_config.disp_rot = (lv_display_rotation_t)display_settings_boot_rotation();
     atomic_store(&g_selected_page, g_config.cfg_idx);
+    g_page_to_save = g_config.cfg_idx;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1512,6 +1549,7 @@ void app_main(void)
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
     if (lvgl_port_lock(portMAX_DELAY))
     {
+        ui_set_wake_page_callback(ui, select_wake_page);
         if (g_runtime)
         {
             ui_configure_page_action(ui, g_runtime->page_action);
@@ -1610,6 +1648,7 @@ void app_main(void)
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
                     atomic_store(&g_selected_page, command.value);
+                    g_page_to_save = command.value;
                     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
@@ -1909,7 +1948,7 @@ void app_main(void)
             if (!lvgl_port_lock(0))
                 continue;
             generation      = atomic_load(&g_local_page_generation);
-            updated.cfg_idx = atomic_load(&g_selected_page);
+            updated.cfg_idx = g_page_to_save;
             lvgl_port_unlock();
             if (generation != page_save.generation)
             {

@@ -1,8 +1,10 @@
 #include "display_idle_policy.h"
-void display_idle_touch(display_idle_policy_t *s, uint32_t now)
+void display_idle_touch(display_idle_policy_t *s, uint32_t now, bool disconnected)
 {
     s->last_touch = now;
     s->touched    = true;
+    if (disconnected)
+        s->saw_data = false;
 }
 bool display_idle_waiting(display_idle_policy_t *s, bool available, uint32_t at, bool priority_ui, uint32_t now)
 {

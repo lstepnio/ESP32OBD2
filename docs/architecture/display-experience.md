@@ -75,9 +75,15 @@ with a shorter needle that clears the ring. The reference splash and steady wait
 
 With no valid vehicle observation, it stays until touch or data. After observations
 have arrived, sixty seconds without a valid scoped vehicle observation returns to
-the logo. A touch wakes readings for thirty seconds; the waking stroke is consumed
-so it cannot also navigate or execute an action. Data wakes immediately, with the
-page populated from the existing cache before uncovering it. Original monotonic
+the logo. With both adapters disconnected, a touch shows the readings for 15
+seconds, measured from the most recent touch, unless fresh data arrives. The
+waking stroke is consumed so it cannot also navigate or execute an action.
+When data arrives, wake keeps the selected page if every reading is available
+or opens the first fully populated saved page. The page renders from the cache
+before the logo is hidden. If no page is complete, wake allows up to one second
+for more samples, then shows a partial page if one is available. It keeps the logo up if no saved
+page has a displayable value. This temporary
+choice does not change the saved page order or selection. Original monotonic
 sample time, source, session and revision remain authoritative. Invalid or retired
 samples cannot postpone the logo. One healthy vehicle source keeps the combined
 view awake if its sibling disappears.

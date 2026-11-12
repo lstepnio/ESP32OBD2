@@ -8,7 +8,7 @@
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
     ui_sample_t sample;
-    bool        available = metric_sample(ui, index, &sample);
+    bool        available = metric_sample(ui, &ui->display.page.metrics[index], &sample);
     if (available)
         *value = sample.value;
     return available;
@@ -29,6 +29,21 @@ static void     command_touch(ui_t *ui, lv_event_code_t event)
         ++owner_confirmations;
     else if (event == UI_EVENT_PAGE_ACTION)
         ui_show_vehicle_actions(ui);
+}
+
+static ui_page_t wake_alternative;
+static bool      choose_fixture_wake_page(ui_t *ui, bool allow_partial)
+{
+    const ui_page_readiness_t current     = ui_page_readiness(ui, &ui->display.page);
+    const ui_page_readiness_t alternative = ui_page_readiness(ui, &wake_alternative);
+    if (current == UI_PAGE_COMPLETE)
+        return true;
+    if (alternative == UI_PAGE_COMPLETE)
+    {
+        ui_set_page(ui, &wake_alternative);
+        return true;
+    }
+    return allow_partial && current == UI_PAGE_PARTIAL;
 }
 
 void worker_health_progress(worker_id_t id, uint32_t now)
@@ -1280,11 +1295,50 @@ int main(int argc, char **argv)
     assert(!ui->waiting_visible && command_requests == before);
     tick(DISPLAY_IDLE_TOUCH_MS + 1);
     assert(ui->waiting_visible);
+    /* Both links can be ready before the selected page has all its readings. */
+    ui_page_t wake_dual = dual_arc;
+    for (unsigned i = 0; i < 2; ++i)
+    {
+        wake_dual.metrics[i].scoped       = true;
+        wake_dual.metrics[i].source_index = 1 - i;
+        wake_dual.metrics[i].revision     = 7;
+    }
+    ui_set_page(ui, &wake_dual);
+    wake_alternative              = wake_dual;
+    wake_alternative.name         = "Complete RPM";
+    wake_alternative.renderer     = UI_RENDERER_NUMERIC;
+    wake_alternative.metric_count = 1;
+    wake_alternative.metrics[0]   = wake_dual.metrics[1];
+    ui_set_wake_page_callback(ui, choose_fixture_wake_page);
     vehicle = true;
     ui_set_source_state(ui, 0, true, 7, source_generations[0]);
-    ui_set_source_value(ui, 0, 7, source_generations[0], 0x0c, &idle_rpm, host_ms);
+    ui_set_source_state(ui, 1, true, 7, source_generations[1]);
+    ui_set_source_value(ui, 1, 7, source_generations[1], 0x5503, &park, host_ms);
+    assert(ui_page_readiness(ui, &wake_dual) == UI_PAGE_PARTIAL);
     tick(60);
-    assert(!ui->waiting_visible);
+    assert(ui->waiting_visible);
+    ui_set_source_value(ui, 1, 7, source_generations[1] - 1, 0x0c, &idle_rpm, host_ms);
+    assert(ui_page_readiness(ui, &wake_alternative) == UI_PAGE_EMPTY);
+    ui_set_source_value(ui, 1, 7, source_generations[1], 0x5503, NULL, host_ms);
+    ui_set_source_value(ui, 0, 7, source_generations[0], 0x0c, &idle_rpm, host_ms);
+    assert(ui_page_readiness(ui, &wake_dual) == UI_PAGE_PARTIAL);
+    assert(ui_page_readiness(ui, &wake_alternative) == UI_PAGE_COMPLETE);
+    tick(60);
+    assert(!ui->waiting_visible && ui->display.page.metric_count == 1 && ui->display.rendered_available[0]);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "675"));
+
+    /* A lone valid half of a dual page may wake after the short grace. */
+    ui_set_page(ui, &wake_dual);
+    tick(DISPLAY_IDLE_DATA_MS + 1);
+    assert(ui->waiting_visible);
+    ui_set_source_value(ui, 1, 7, source_generations[1], 0x5503, &park, host_ms);
+    tick(60);
+    assert(ui->waiting_visible);
+    tick(999);
+    assert(ui->waiting_visible);
+    tick(50);
+    assert(!ui->waiting_visible && ui->display.rendered_available[0] && !ui->display.rendered_available[1]);
+    ui_set_wake_page_callback(ui, NULL);
     ui_waiting_logo_enable(ui, false);
     /* Live recording must preserve fractional data and reset unavailable runs. */
     ui_page_t trend_page          = saved;

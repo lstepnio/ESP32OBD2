@@ -70,6 +70,7 @@ typedef struct
     uint8_t       arc_metric_index;
 } ui_page_t;
 
+typedef bool (*ui_wake_page_callback_t)(ui_t *ui, bool allow_partial);
 typedef void (*ui_touch_callback_t)(ui_t *ui, lv_event_code_t event_code);
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -113,6 +114,15 @@ void ui_set_source_value(ui_t         *ui,
                          double const *value,
                          uint32_t      observed_at_ms);
 void ui_set_page(ui_t *ui, ui_page_t const *page);
+/* LVGL owner only. Complete pages rank above partial and unavailable pages. */
+typedef enum
+{
+    UI_PAGE_EMPTY,
+    UI_PAGE_PARTIAL,
+    UI_PAGE_COMPLETE,
+} ui_page_readiness_t;
+ui_page_readiness_t ui_page_readiness(ui_t *ui, const ui_page_t *page);
+void                ui_set_wake_page_callback(ui_t *ui, ui_wake_page_callback_t callback);
 void ui_set_connection_status(ui_t *ui, bool wifi, bool phone, bool child_configured, unsigned obd_ready_mask);
 /* LVGL owner only for configuration and target access. Context mailbox is thread-safe. */
 void    ui_configure_page_action(ui_t *ui, page_action_config_t config);
