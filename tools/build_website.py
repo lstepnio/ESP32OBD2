@@ -280,9 +280,10 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     used_images.update("gauge/" + screen["key"] + ".png" for screen in content["screens"])
     for name in sorted(used_images):
         files[name] = (ROOT / "docs/assets" / name).read_bytes()
-    for board in ("lcd", "oled"):
+    for board in ("lcd", "oled", "lcd-back"):
         asset = f"hardware/{board}.webp"
         files[asset] = (source / asset).read_bytes()
+    files["hardware/oled-usb-hero.webp"] = (source / "hardware/oled-usb-hero.webp").read_bytes()
     files["social-preview.png"] = (source / "social-preview.png").read_bytes()
     for asset in sorted((source / "recovery").iterdir()):
         if asset.suffix != ".html" and asset.name != "package.json":

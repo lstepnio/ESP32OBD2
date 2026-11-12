@@ -58,6 +58,12 @@ registerForm('#interest-form', '#form-message', 'Submitting…', 'You are on the
 registerForm('#custom-form', '#custom-message', 'Sending…', 'Request received. We will review it and follow up by email.');
 
 let orderPrefill = '';
+// A direct specs link also opens its disclosure for keyboard and touch visitors.
+document.querySelectorAll('a[href="#engineering"]').forEach(link => {
+  link.addEventListener('click', () => {
+    document.querySelector('#engineering').open = true;
+  });
+});
 document.querySelectorAll('[data-order-request]').forEach(link => {
   link.addEventListener('click', () => {
     const details = document.querySelector('#custom-details');

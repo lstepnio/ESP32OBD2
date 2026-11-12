@@ -1,0 +1,868 @@
+{
+  "sourceCommit": "28b0b12f8ebbf89b535557b2f5723d8bbbc7059b",
+  "reviewedOn": "2026-11-10",
+  "assetPrefix": "/assets/72dd7afaeda18d95",
+  "sourceDocuments": [
+    "docs/current-state.md",
+    "docs/roadmap.md",
+    "docs/backlog.md",
+    "docs/development/reading-catalog-alerts.md",
+    "docs/architecture/alerts-and-diagnostics.md",
+    "docs/architecture/vehicle-actions.md",
+    "docs/evidence/jeep-high-idle-reference.md"
+  ],
+  "claims": {
+    "scopes": {
+      "development": {
+        "audience": "public reference-board development users",
+        "availability": "available-development"
+      },
+      "observed": {
+        "audience": "captured Hemi-swapped Jeep setup",
+        "availability": "observed-limited"
+      },
+      "candidate": {
+        "audience": "explicit owner-supervised candidate only",
+        "availability": "owner-only-candidate"
+      },
+      "planned": {
+        "audience": "future users",
+        "availability": "planned"
+      },
+      "exploring": {
+        "audience": "future users",
+        "availability": "exploring"
+      },
+      "paused": {
+        "audience": "owner and future users",
+        "availability": "paused"
+      }
+    },
+    "items": {
+      "CORE": {
+        "scope": "development",
+        "sources": [
+          "docs/features.md",
+          "docs/architecture/vehicle-connections.md"
+        ],
+        "evidence": [
+          "docs/evidence/gatt-long-read-recovery.md"
+        ],
+        "text": "Set up pages, readings and alerts with the mobile app. The round gauge keeps running on your dash without the phone."
+      },
+      "LAYOUTS": {
+        "scope": "development",
+        "sources": [
+          "docs/architecture/display-experience.md",
+          "contracts/reading-catalog.json"
+        ],
+        "evidence": [
+          "docs/evidence/display-evolution.md"
+        ],
+        "text": "Show a single number, a trend or two readings side by side."
+      },
+      "ANDROID": {
+        "scope": "development",
+        "sources": [
+          "docs/architecture/android-runtime.md",
+          "docs/architecture/interaction-recovery.md",
+          "docs/protocol/wifi-bulk-v1.md"
+        ],
+        "evidence": [
+          "docs/evidence/dev75-indoor-rollout.md"
+        ],
+        "text": "Manage vehicles, gauges and settings in one place. The App reconnects to read your saved setup and can install signed development firmware over private Wi-Fi."
+      },
+      "READINGS": {
+        "scope": "observed",
+        "sources": [
+          "docs/architecture/vehicle-connections.md"
+        ],
+        "evidence": [
+          "docs/evidence/gatt-long-read-recovery.md"
+        ],
+        "text": "On the modified Jeep, RPM matched the dash and engine readings ran alongside transmission temperature and gear. Independent loss and return of each adapter were checked."
+      },
+      "UPDATES": {
+        "scope": "observed",
+        "sources": [
+          "docs/architecture/platforms-and-releases.md"
+        ],
+        "evidence": [
+          "docs/evidence/dev75-indoor-rollout.md",
+          "docs/evidence/action-pages-indoor.md"
+        ],
+        "text": "Indoor Wi-Fi update and interruption checks retained the saved setup."
+      },
+      "PLATFORMS": {
+        "scope": "planned",
+        "sources": [
+          "docs/roadmap.md"
+        ],
+        "evidence": [
+          "docs/backlog.md"
+        ],
+        "text": "Planned work includes more vehicle profiles and setup over USB in a browser."
+      },
+      "ACTIONS": {
+        "scope": "candidate",
+        "sources": [
+          "docs/architecture/vehicle-actions.md"
+        ],
+        "evidence": [
+          "docs/evidence/jeep-high-idle-reference.md",
+          "docs/evidence/dev80-action-entry.md"
+        ],
+        "text": "Air up and Winch use timed raised idle with a countdown and direct Stop. Vehicle controls are being tested privately on Luke\u2019s Jeep."
+      }
+    },
+    "actions": {
+      "airUp": {
+        "text": "A four-tire timer estimated from a measured fill.",
+        "source": "docs/architecture/vehicle-actions.md",
+        "scope": "candidate",
+        "evidence": [
+          "docs/architecture/vehicle-actions.md",
+          "docs/evidence/dev80-action-entry.md"
+        ],
+        "publicAvailability": "disabled",
+        "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
+      },
+      "winch": {
+        "text": "A separate timed preset for recovery.",
+        "source": "docs/architecture/vehicle-actions.md",
+        "scope": "candidate",
+        "evidence": [
+          "docs/architecture/vehicle-actions.md",
+          "docs/evidence/dev80-action-entry.md"
+        ],
+        "publicAvailability": "disabled",
+        "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
+      },
+      "absTcs": {
+        "text": "Private testing while controller restoration is validated.",
+        "source": "firmware/gauge/main/src/jeep_abs_tcs_driver.c",
+        "scope": "candidate",
+        "evidence": [
+          "docs/architecture/vehicle-actions.md",
+          "docs/evidence/dev80-action-entry.md"
+        ],
+        "publicAvailability": "disabled",
+        "ownerAvailability": "explicit-supervised-candidate; physical qualification incomplete"
+      }
+    },
+    "inputProvenance": {
+      "reviewedOn": "2026-11-11",
+      "reason": "Reviewed CORE and LAYOUTS against the current feature index and display contract. Dot removal, the connection footer and brightness scheduling preserve the published setup, independent gauge operation and reading layouts. The feature-index additions do not change public access to virtual gauges, subscriptions or vehicle controls. The OLED offer still includes its preinstalled software major and remains inquiry-only. The separately priced Vgate is optional on both gauge offers. The foreground location retry for sunset brightness changes setup error handling and leaves the published layout claim unchanged. Mobile companion branding now reflects Android availability and the owner-prioritized iPhone follow-up for essential setup. USB configuration and broader vehicle profiles remain planned. PR #160 documents a board-specific startup decoration hook. The hook runs during boot and preserves the published reading layouts.",
+      "sha256": {
+        "contracts/reading-catalog.json": "4253cf23fdb0345599178af36efdfe3f95de5ea1613def88c37f20049e596595",
+        "docs/architecture/alerts-and-diagnostics.md": "e61735ee015ca11afd262765e55af860824fc9ede165feee265f2964cd52b71f",
+        "docs/architecture/android-runtime.md": "cbec3bcbc4d4ac7437e8fb030f27598ce64a6f4bc2579eef24b9990b9d51fb0d",
+        "docs/architecture/display-experience.md": "2655b2ca1e7730decbfe2c0ebf48b70314e53eff048d022adf6b9ab8e767ff73",
+        "docs/architecture/interaction-recovery.md": "2b2a8ae31b07292b35f8c62f3e8e5463222a4464b60a9d3502c3d09df9614b54",
+        "docs/architecture/platforms-and-releases.md": "e318714b1593b747acc0585ca54fcdb0b853e33e1266cf635c0e8a502cf3045f",
+        "docs/architecture/vehicle-actions.md": "8d1db6bf431a4a970eae18393a2190e13056887016d1a7602c8dc6e5a91b0018",
+        "docs/architecture/vehicle-connections.md": "3f0cfea953340596d86a865dd28a0372129214e05b37d15bbcd37090d91680b0",
+        "docs/backlog.md": "c951769f9b7c040536ef75aa403f666420d2fe99b50ddd9cdfc3a5392744020c",
+        "docs/current-state.md": "5ccedf10c8a9c6b062452d42dcd4eb682a4627b0e1dc8cf82406275572b83df4",
+        "docs/development/reading-catalog-alerts.md": "2cd862cf04f37bc8b8d8dd731ccca3153ff3e4dccd5e425a45c1d0d4b6cbbf11",
+        "docs/evidence/action-pages-indoor.md": "3720880cb92f1a647f64939fde649f57e4eaf22ee35b6a87c3e3b70c8273e6a3",
+        "docs/evidence/dev75-indoor-rollout.md": "10d3b6d4dfdf6267b02db07c48013fb3dd18e3db67b9cb3abaf6f40db0daaf5c",
+        "docs/evidence/dev80-action-entry.md": "bd641ceaa166cde0ea11bec6a1efd811346d12a3caee02af96a7162a7044d9aa",
+        "docs/evidence/display-evolution.md": "30847aee0cb5b34dc788a7509372a93abf0aa94b6ad8a3e16f95518dd065c618",
+        "docs/evidence/gatt-long-read-recovery.md": "5de44236f645e52686eee817b0f6e575d56c3850ae56f03a012aa361a2fcb487",
+        "docs/evidence/jeep-high-idle-reference.md": "35112c013262fce0a8e0a60771fd99d674d5970ecd2679f26620e00a51cac462",
+        "docs/features.md": "689f49aef0dd954364da33413726afde539474f15fded015dfe3da6de8243edb",
+        "docs/protocol/wifi-bulk-v1.md": "c06ca3529e17446d81fe1609994b564688ca103a7cc6ec3a5dbe5c342382c8c8",
+        "docs/roadmap.md": "24bc67c4cd28fb957f7b5e615cc960130b15dd0906373ef150a9807e9ada33b9",
+        "firmware/gauge/main/src/jeep_abs_tcs_driver.c": "6cd5949a9b2caa24a3e7505bae16819ad7f14c1b1be1fdc2a33e0d5eeec52370"
+      }
+    }
+  },
+  "visualReview": {
+    "changedImageInputs": [],
+    "pendingCaptures": [],
+    "publicationReady": true,
+    "changedClaimInputs": []
+  },
+  "imageProvenance": {
+    "docs/assets/app/marketing-provenance.json": {
+      "captured_at_utc": "2026-11-09T19:53:12.995734+00:00",
+      "source_commit": "c42b6566ba093c81ce3d64d07fcff84931a10ff4",
+      "harness": "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+      "harness_sha256": "70b88e21abfc4158b43a86508ee975d675a6ebf25382d68162f291be224a3bcc",
+      "capture_method": "Production Compose captureToImage for Gauge/Car/Settings; UiAutomation native dialog screenshot for Actions; isolated managed ciPhone API35; no physical device",
+      "fonts": "Production EGaugeTheme typography and API35 sans-serif fallback; no downloaded fonts",
+      "caveats": [
+        "Synthetic setup/attention values; no radio, vehicle or durable-save qualification.",
+        "Gauge/Car/Settings use production composables in three-tab capture shell; Actions captures the production native modal and Android SystemUI.",
+        "Actions configuration is read-only in this fixture; no command or save callback is executed."
+      ],
+      "entries": [
+        {
+          "path": "docs/assets/app/gauge.png",
+          "sha256": "31ba3abaed21dc3f498569fd3af264047f493a1f1864806d0dd297ac3a1b70fc",
+          "route": "gauge",
+          "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/gauge-default-phone-dark.png",
+          "resolution_px": [
+            780,
+            1688
+          ],
+          "layout_dp": [
+            390,
+            844
+          ],
+          "density": 2.0,
+          "font_scale": 1.0,
+          "theme": "dark",
+          "advanced": false,
+          "navigation": [
+            "Gauge",
+            "Car",
+            "Settings"
+          ],
+          "synthetic": true,
+          "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
+          "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
+          "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+        },
+        {
+          "path": "docs/assets/app/car.png",
+          "sha256": "f5ea11a4defc8ef9fd8dbb470247a7cfa6ac69c4fd92e905aa0271877231c9be",
+          "route": "car",
+          "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/car-default-phone-dark.png",
+          "resolution_px": [
+            780,
+            1688
+          ],
+          "layout_dp": [
+            390,
+            844
+          ],
+          "density": 2.0,
+          "font_scale": 1.0,
+          "theme": "dark",
+          "advanced": false,
+          "navigation": [
+            "Gauge",
+            "Car",
+            "Settings"
+          ],
+          "synthetic": true,
+          "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
+          "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
+          "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+        },
+        {
+          "path": "docs/assets/app/settings.png",
+          "sha256": "105859ed65f2129e0437ccab392aba29679f6d7046460d42cd97d24207390c30",
+          "route": "settings",
+          "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/settings-default-phone-dark.png",
+          "resolution_px": [
+            780,
+            1688
+          ],
+          "layout_dp": [
+            390,
+            844
+          ],
+          "density": 2.0,
+          "font_scale": 1.0,
+          "theme": "dark",
+          "advanced": false,
+          "navigation": [
+            "Gauge",
+            "Car",
+            "Settings"
+          ],
+          "synthetic": true,
+          "synthetic_data": "Example car; stored Engine P0300; coolant108C/limit105C; preview RPM2840; brightness80%; rotation0; cycle10s. Fixture values, not live readings.",
+          "gauge_connection": "Synthetic Gauge ready and Car connected through the production ConnectionStatusWidget; example readings retain PREVIEW, not live vehicle evidence.",
+          "controls": "Production composables, canEditActions=false and canEditActionPages=false. Disabled rows retain production arrow styling; no execution or public-control capability claim."
+        },
+        {
+          "path": "docs/assets/app/actions.png",
+          "sha256": "767ec39b1defc0aacc4e90df54919933268121b50ddd7c73a45969d1e18f53b1",
+          "route": "actions",
+          "source_capture": "android/app/build/outputs/managed_device_android_test_additional_output/debug/ciPhone/website-marketing/actions-default-phone-dark.png",
+          "resolution_px": [
+            1080,
+            1920
+          ],
+          "font_scale": 1.0,
+          "theme": "dark",
+          "advanced": false,
+          "synthetic": true,
+          "capture_method": "Native modal window via UiAutomation; platform-native dialog/SystemUI density",
+          "synthetic_data": "Air up5:00, Winch1:00, ABS+TCS not publicly supported; no actual vehicle data.",
+          "controls": "Read-only configuration fixture; callbacks cannot save or execute commands."
+        }
+      ],
+      "validation": "Managed emulator capture 1/1 passed. All four images visually reviewed; fixture data and no physical-device qualification.",
+      "inputProvenance": {
+        "revision": "c42b6566ba093c81ce3d64d07fcff84931a10ff4",
+        "paths": [
+          "android/app/src/main/java/com/lstepnio/egauge/ui",
+          "android/app/src/main/res",
+          "android/core/designsystem/src/main",
+          "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+          "android/app/build.gradle.kts"
+        ],
+        "sha256": {
+          "android/app/build.gradle.kts": "c235466878e4228fc6c9e12b629d15681779260a98894439a69e323dbf7c0c9b",
+          "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt": "70b88e21abfc4158b43a86508ee975d675a6ebf25382d68162f291be224a3bcc",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt": "529457e8a24468b2276362bf3a47235fdc4d978ed3efae726148b30b355e8287",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "becb05920f6d8cf71b7480a0ff221b4357fbb3c168dc63ea127cfbad078d250a",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/ConnectionStatusWidget.kt": "5dff48527e861a2bd1903c2bbc8391445bf403dbe9017fad48fd54d18aee03dc",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/Layouts.kt": "4cf790eca642c7aee94f570d8c62062c807d1420e9ae2f495046e033fd4f429e",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/ActionPagesSheet.kt": "71f998d0bbe003fd914a7591a1b8cbb43a2330ec08c9a7ff5f222ee0f57eba8a",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/AirUpTimerEditor.kt": "bcefd61a8d3f2439acdc5aeaa5410632920546e205f17f2b17c93683bce0d04a",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt": "fbd4ec2744524cc868354b9116551c46b475ca8704ac5a1d87d5811a9700536e",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt": "44682c78840dab2f0ec0bb977c7c9be4df5626a8d558f56342ab734578c8f4c5",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/FaultCodeContent.kt": "f79039a7837c88f1dc15d214df77123d3e6da0b30ae45544b4917e27c00e0f4f",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleActionsSheet.kt": "493da964fab8ba1b5c7f2711568345efab4b655e60237eccc806b7b58b289049",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleCoolantNotice.kt": "0db0286e64b464d7d95ef739f02bd2427a0bd7667bc0f5126de6e32b4ff0b488",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleTargetEditor.kt": "7aa0680e9ea93c5b49a7fb1ed9bfa6eb660bf4bb3614a3f2e0f053149d744406",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/PageActionsSheet.kt": "a23d6c3b5cbdf2f32583d1828f8c4af4a15eb44e4d32fe3de38323d192b99e45",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/VehicleActionsSheet.kt": "00c146abd655c3a9ada471e733e47249908bf16cd400e07407fcca12ebef1d6f",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertEditor.kt": "71acc1e7bce1c25b80a46138f49f4377e8d6bfafe9ac914788adc9a7e80ab221",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertForm.kt": "d90ae1a99ad909726f09c2625fc7c139c26ad87facbc16a59c8c552f75af9e1b",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/CustomizeChoices.kt": "b35cba395fbf66fd295fe241c78daa1aa4dea3b799fea2357c2ad370a971cfcf",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt": "3587c0d8d53e4256489529ea15ed57b6c493808098e01095699b064830d941d3",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt": "3c0beb5b8384f3d68108054d5aa0e411a167b5e4b5313112f5055a6ee2e94a5b",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/expert/HiddenFaultCodesScreen.kt": "499f224949c5884b69f0da272e7e64e37f17b2d3d2ff310c163b55d7a6b42bda",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt": "be7bdd2487bda3276deaf923b263df3747f7c03a4fb614542944b573aae84da0",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt": "173be4037c39f249c374d26eb7f27ddd4b7dc23dc27ea701cb07701ef9f2b3a8",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt": "dae50e94cbd3396559f06f2275e358acd78ba8da3996b76c39adf556c9055591",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt": "2662465aa758198d62715357259996399627c6ae7b95acaa39235143702ef8f0",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertContextCopy.kt": "367a204da69e53206014e5953ae043ac67bb52acc1887a8192b3107439d24830",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertCopy.kt": "de3b9702d310e8638b8d58f3a2a66b74434f85312832ec94a0f21b5aae6b9043",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/CarPresentation.kt": "0dbea20576d4665bf26dc118af122c2aa5796adc1fcfe4b164cff0934d9b8e21",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/ConnectionCopy.kt": "ffe60ad0686abd094e5484025a96001863008cfd629b9cbd6ac3acac2d958a6d",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/DiagnosticPresentation.kt": "20927a5c825d5d75cc1825b8026edbe31e53801a919f8fbe6258fd0965b6ace8",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/OperationCopy.kt": "d007e5066af80cf337a23c6efa3d8a24e1f3000a93b86bba303a944f15398a11",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationDetails.kt": "f976ca048a41b7d43c6c2717c4a868b730a44b66aaf5f94a440f7d1773a97d1f",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationMapper.kt": "fed08fd1a4419a6eaa8f7733f98757aa0100c2466b4e894386ea5d6432e50f3d",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationPreferences.kt": "6fddc9dd88728794c9068f23c16e441f322834bf029eb331172aa0bf44dc3e6e",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/ScreenStates.kt": "48c6d5476b64182d5b69920f3d70814b8b37456fc222a7895a832781c11832d7",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/SecondAdapterPresentation.kt": "eeab334e8f826089e1c16377f9cbc8a722f4592c6ea3df703b4eafeda051f753",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/VehicleConnectionCopy.kt": "5c9636285d4bda39e9be1f7980ecad9bfa54ff1f9ca7479c216cd6bc3b27310c",
+          "android/app/src/main/res/drawable/ic_alert_notification.xml": "5a1ef06d88ee8f876fce3909aa707022aff8a048d5f5fe428b7aa4fc0e243efc",
+          "android/app/src/main/res/drawable/ic_launcher_foreground.xml": "3ddcd7c1f7a6581b58bc6fa72e2c4fcd0e1fe2c1b0c1fc9d079ccdf1c9915078",
+          "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": "32715ff646f6b9fef7c321138e4a14556c4a1f98a87b06070b56f41643dad718",
+          "android/app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml": "678da6560d837e905ba0c82a15a11918714729de283138721e85ccc1eb1ee9ff",
+          "android/app/src/main/res/values/icon_colors.xml": "721bbfa98b259e727b25b66cf5f79847c2ab412daa8fc3cd79ce0a70c866d6ec",
+          "android/app/src/main/res/values/strings.xml": "fc204cd5614ba17f2f2c1755e8760acc602d1aeaa9136f90a5c35710a1d93d94",
+          "android/app/src/main/res/xml/report_paths.xml": "1a8d5fc22a32d6f9d942dc4579c5868ec3e294cf92ab6995f14599eaf3338704",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/ComponentPreviews.kt": "ea6c4ff07c805e5faeacc44197166df01e1d6bc58eec432ca092082d8cc52018",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Components.kt": "b327d1adb668c135b1cc8484f32092ddc92c9dc042e911882cef194da180449e",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GearColors.kt": "09fc2cd18da537d58d9eddf52b281235d6af2649fed1b609d590b5c08bf5485f",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedFixtures.kt": "d7a7716d0cda318dde946b2038c249b46e793d1be24d836aafade6759704f0aa",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedTokens.kt": "cdb4e2e4a77cc9fa2f57ea58008e769588dc7ab17aa0d9c4d2584f50a499929a",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Icons.kt": "fc953c0dcc502b65c64c5381482ab8fbeabe2286a918fdbee3649d799cbc2b98",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Models.kt": "8fff04b2013644a435553d8639d9bd28d4a3b883ebefc8916cc68cc15fecbaca",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/RoundPreview.kt": "203f3c1eccd2e52f35fc6a86d36ba200582d314d46c8a924e3596a87ac679b23",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Theme.kt": "622c975b915ea4bb7fe6cdcdc7105478e48a5117ed041e4ff56909cc1d9d83d0",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/TrendCurve.kt": "ccb1ae90f00c54da8a407a2fe4b5985eaba751222dabc67364ce90bf160ae562"
+        },
+        "reviewPolicy": "Any changed, added or removed relevant input requires semantic review. Hash mismatch alone is not proof that a screen changed. Do not replace baseline hashes without a capture or documented equivalence review."
+      },
+      "equivalenceReview": {
+        "reviewedOn": "2026-11-10",
+        "reason": "Ran the production WebsiteReviewCaptureTest in marketing mode on managed API 35 at f4f4cf0. Gauge, Car and Settings matched pixel for pixel. Actions matched outside the Android status-bar clock area, so the existing captures remain representative. The fixture does not show board-specific connection icon or sunset controls.",
+        "evidence": [
+          "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt",
+          "docs/development/quality.md"
+        ],
+        "sha256": {
+          "android/app/build.gradle.kts": "57a10386819fcdd02a5cbabdd176015dae4965ddc6fb7cabae0399d9204ed4eb",
+          "android/app/src/androidTest/java/com/lstepnio/egauge/WebsiteReviewCaptureTest.kt": "70b88e21abfc4158b43a86508ee975d675a6ebf25382d68162f291be224a3bcc",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/AlertPresentation.kt": "529457e8a24468b2276362bf3a47235fdc4d978ed3efae726148b30b355e8287",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/CompanionApp.kt": "45c1f45a449190781dedfcb469618aa76496b4b50ce10898aa0cb1d6f5c38fff",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/ConnectionStatusWidget.kt": "5dff48527e861a2bd1903c2bbc8391445bf403dbe9017fad48fd54d18aee03dc",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/Layouts.kt": "4cf790eca642c7aee94f570d8c62062c807d1420e9ae2f495046e033fd4f429e",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/ActionPagesSheet.kt": "71f998d0bbe003fd914a7591a1b8cbb43a2330ec08c9a7ff5f222ee0f57eba8a",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/AirUpTimerEditor.kt": "bcefd61a8d3f2439acdc5aeaa5410632920546e205f17f2b17c93683bce0d04a",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarAlertSettingsScreen.kt": "fbd4ec2744524cc868354b9116551c46b475ca8704ac5a1d87d5811a9700536e",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/CarScreen.kt": "44682c78840dab2f0ec0bb977c7c9be4df5626a8d558f56342ab734578c8f4c5",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/FaultCodeContent.kt": "f79039a7837c88f1dc15d214df77123d3e6da0b30ae45544b4917e27c00e0f4f",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleActionsSheet.kt": "493da964fab8ba1b5c7f2711568345efab4b655e60237eccc806b7b58b289049",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleCoolantNotice.kt": "0db0286e64b464d7d95ef739f02bd2427a0bd7667bc0f5126de6e32b4ff0b488",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/IdleTargetEditor.kt": "7aa0680e9ea93c5b49a7fb1ed9bfa6eb660bf4bb3614a3f2e0f053149d744406",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/PageActionsSheet.kt": "a23d6c3b5cbdf2f32583d1828f8c4af4a15eb44e4d32fe3de38323d192b99e45",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/car/VehicleActionsSheet.kt": "00c146abd655c3a9ada471e733e47249908bf16cd400e07407fcca12ebef1d6f",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertEditor.kt": "71acc1e7bce1c25b80a46138f49f4377e8d6bfafe9ac914788adc9a7e80ab221",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/AlertForm.kt": "d90ae1a99ad909726f09c2625fc7c139c26ad87facbc16a59c8c552f75af9e1b",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/CustomizeChoices.kt": "b35cba395fbf66fd295fe241c78daa1aa4dea3b799fea2357c2ad370a971cfcf",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/customize/DashboardEditorScreen.kt": "7061edaff4c124969fa5842300d5d6a122c56260fc4c709c9b9a6650670fd6a1",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/expert/ExpertScreen.kt": "3c0beb5b8384f3d68108054d5aa0e411a167b5e4b5313112f5055a6ee2e94a5b",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/expert/HiddenFaultCodesScreen.kt": "499f224949c5884b69f0da272e7e64e37f17b2d3d2ff310c163b55d7a6b42bda",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/home/HomeScreen.kt": "fc97f046cc31c7bf902efcee2d4d30981fec359cea54c7c584ff6fcbba92c1b2",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SettingsScreen.kt": "21adada1189ce05b920cc1f0c76fe9cd49eb4d57093c327b4f220ce532544f26",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetBrightnessDialog.kt": "d1bf5172b4d5fbdf5f5256d0434af47b381964270ca3a8f55c4c32718e0b39eb",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/settings/SunsetPhoneLocation.kt": "277639b67d2b56475c7722c4d82492673eb93391fff44e144866c6dd04099f16",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/settings/UpdatesScreen.kt": "dae50e94cbd3396559f06f2275e358acd78ba8da3996b76c39adf556c9055591",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/setup/SetupScreen.kt": "6d25600a9d91ab077891c9b81ae7478f4e09ae55185bf049825dbd40b1304651",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertContextCopy.kt": "367a204da69e53206014e5953ae043ac67bb52acc1887a8192b3107439d24830",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/AlertCopy.kt": "de3b9702d310e8638b8d58f3a2a66b74434f85312832ec94a0f21b5aae6b9043",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/CarPresentation.kt": "0dbea20576d4665bf26dc118af122c2aa5796adc1fcfe4b164cff0934d9b8e21",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/ConnectionCopy.kt": "ffe60ad0686abd094e5484025a96001863008cfd629b9cbd6ac3acac2d958a6d",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/DiagnosticPresentation.kt": "20927a5c825d5d75cc1825b8026edbe31e53801a919f8fbe6258fd0965b6ace8",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/OperationCopy.kt": "d007e5066af80cf337a23c6efa3d8a24e1f3000a93b86bba303a944f15398a11",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationDetails.kt": "f976ca048a41b7d43c6c2717c4a868b730a44b66aaf5f94a440f7d1773a97d1f",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationMapper.kt": "2ab4e61d93396439b04299aed58f3c2c3759bd4678cef164c262b300c5da4645",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/PresentationPreferences.kt": "6fddc9dd88728794c9068f23c16e441f322834bf029eb331172aa0bf44dc3e6e",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/ScreenStates.kt": "757b4fcbc49bad5e0a298c5390cc04bb3a93eabc003d072992050ed08c649bf9",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/SecondAdapterPresentation.kt": "eeab334e8f826089e1c16377f9cbc8a722f4592c6ea3df703b4eafeda051f753",
+          "android/app/src/main/java/com/lstepnio/egauge/ui/state/VehicleConnectionCopy.kt": "5c9636285d4bda39e9be1f7980ecad9bfa54ff1f9ca7479c216cd6bc3b27310c",
+          "android/app/src/main/res/drawable/ic_alert_notification.xml": "5a1ef06d88ee8f876fce3909aa707022aff8a048d5f5fe428b7aa4fc0e243efc",
+          "android/app/src/main/res/drawable/ic_launcher_foreground.xml": "3ddcd7c1f7a6581b58bc6fa72e2c4fcd0e1fe2c1b0c1fc9d079ccdf1c9915078",
+          "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": "32715ff646f6b9fef7c321138e4a14556c4a1f98a87b06070b56f41643dad718",
+          "android/app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml": "678da6560d837e905ba0c82a15a11918714729de283138721e85ccc1eb1ee9ff",
+          "android/app/src/main/res/values/icon_colors.xml": "721bbfa98b259e727b25b66cf5f79847c2ab412daa8fc3cd79ce0a70c866d6ec",
+          "android/app/src/main/res/values/strings.xml": "fc204cd5614ba17f2f2c1755e8760acc602d1aeaa9136f90a5c35710a1d93d94",
+          "android/app/src/main/res/xml/report_paths.xml": "1a8d5fc22a32d6f9d942dc4579c5868ec3e294cf92ab6995f14599eaf3338704",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/ComponentPreviews.kt": "ea6c4ff07c805e5faeacc44197166df01e1d6bc58eec432ca092082d8cc52018",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Components.kt": "b327d1adb668c135b1cc8484f32092ddc92c9dc042e911882cef194da180449e",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GearColors.kt": "09fc2cd18da537d58d9eddf52b281235d6af2649fed1b609d590b5c08bf5485f",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedFixtures.kt": "d7a7716d0cda318dde946b2038c249b46e793d1be24d836aafade6759704f0aa",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/GeneratedTokens.kt": "cdb4e2e4a77cc9fa2f57ea58008e769588dc7ab17aa0d9c4d2584f50a499929a",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Icons.kt": "fc953c0dcc502b65c64c5381482ab8fbeabe2286a918fdbee3649d799cbc2b98",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Models.kt": "b0d10c43009b78daecb38dda8faa397e17925ffacdb5b894dfb0928527e949e5",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/RoundPreview.kt": "107fed6646dfd55e2a47599b5845df5403d99e69c86af1c9d783b091acc9479c",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/Theme.kt": "622c975b915ea4bb7fe6cdcdc7105478e48a5117ed041e4ff56909cc1d9d83d0",
+          "android/core/designsystem/src/main/java/com/lstepnio/egauge/core/designsystem/TrendCurve.kt": "ccb1ae90f00c54da8a407a2fe4b5985eaba751222dabc67364ce90bf160ae562"
+        }
+      }
+    },
+    "docs/assets/gauge/capture-provenance.json": {
+      "sourceCommit": "c902a373fcb54e2771a4a95f4846df8318a305eb",
+      "renderer": "Production LVGL 9.2.2 and fonts via the RGB565 240 \u00d7 240 host fixture. Visible RGB is preserved, and circular panel corners are transparent.",
+      "data": "Synthetic source fixtures, not hardware/vehicle evidence",
+      "candidateOptions": {
+        "EGAUGE_HOST_RGB565": true,
+        "EGAUGE_PARKED_IDLE_TEST": true
+      },
+      "entries": [
+        {
+          "file": "action-active.png",
+          "sha256": "82e040841531764d23ac56a87c6819d8f73c9d799f46881e0028e94a96a2d3a4"
+        },
+        {
+          "file": "action-ready.png",
+          "sha256": "9c98caa876563eb58449b7b2e3d66add1c4f7b84cee2ec622d810f9ecfbda204"
+        },
+        {
+          "file": "action-recovery.png",
+          "sha256": "f72b95e965c2366b72c48917b99970e6420d965d3ebd52f9ec6ce14c8bfd45c8"
+        },
+        {
+          "file": "alerts.png",
+          "sha256": "c1c364b21fbfe50433c4190d5bb741d33b13d78256876bda2e9fd12bb414b0f5"
+        },
+        {
+          "file": "arc.png",
+          "sha256": "8092107ed59d4d7e190cf3ea1e2d61cf1d98082419fd7a1060fb5dcc5202c1bd"
+        },
+        {
+          "file": "bar.png",
+          "sha256": "afe919b23446010148ab90444501f5312e12a34b7a43021d12a6d8a4f2d7868f"
+        },
+        {
+          "file": "dual-arc.png",
+          "sha256": "6795f671e77a475d53ecdbed9ad009d9b69852b49dddb7eaae4367bee72d159f"
+        },
+        {
+          "file": "dual.png",
+          "sha256": "55a3fc28a49292c3fe4dbe0e3b6547504422533812b5164117db8f73c2d012ce"
+        },
+        {
+          "file": "numeric.png",
+          "sha256": "305c4f96aab478adc208478a95fe2218a8e5916308ce79b325c94845cb2563ef"
+        },
+        {
+          "file": "trend.png",
+          "sha256": "b5d5ee11a739566cdf8eebf24fe2e958e6ba88220c5f3c664b9427be580b5584"
+        },
+        {
+          "file": "oled-arc.png",
+          "sha256": "b566e3c67db51d2692cb615bd3fb83b88a07773f1e79f3b960e005c7d2f8de0c",
+          "nativeResolution": [
+            466,
+            466
+          ],
+          "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+          "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+          "fixture": "Coolant arc",
+          "use": "Storefront render"
+        },
+        {
+          "file": "oled-dual-arc.png",
+          "sha256": "9738943c094c0eba3d3b989e4819c6d87428fc1e1d5415e43f1d3b8640d58f64",
+          "nativeResolution": [
+            466,
+            466
+          ],
+          "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+          "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+          "fixture": "Gear and RPM with arc",
+          "use": "Storefront render"
+        },
+        {
+          "file": "oled-numeric.png",
+          "sha256": "5e89232053dee4ae637e4983cc389f6d85bc70770024647143c3fe1c0d9ae284",
+          "nativeResolution": [
+            466,
+            466
+          ],
+          "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+          "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+          "fixture": "Engine speed with muted Bluetooth and OBD-II icons",
+          "use": "Storefront render"
+        },
+        {
+          "file": "oled-startup.png",
+          "sha256": "5c8ee51ea59b009e718552957f5680c3d6ef2c4707e67885976d77a4e93a6552",
+          "nativeResolution": [
+            466,
+            466
+          ],
+          "renderer": "Production LVGL 9.2.2 using the OLED Balanced presentation profile and RGB565 host fixture. Synthetic data. Circular panel corners are transparent.",
+          "sharedCoreCommit": "45813bd676e41b42d3a6d0f84148e228cb2d114a",
+          "fixture": "OLED Balanced startup mark with no active links",
+          "use": "Storefront render"
+        },
+        {
+          "file": "lcd-startup.png",
+          "sha256": "05dca7df2b2c957cb59e723c8f7d92a43730608f78fece9dc6cd15e89855ed52",
+          "nativeResolution": [
+            240,
+            240
+          ],
+          "fixture": "Reference startup mark with no active links"
+        }
+      ],
+      "inputProvenance": {
+        "revision": "c902a373fcb54e2771a4a95f4846df8318a305eb",
+        "paths": [
+          "firmware/gauge/main/src/ui.c",
+          "firmware/gauge/main/src/gauge_presentation.c",
+          "firmware/gauge/main/src/gauge_presentation_reference.c",
+          "firmware/gauge/main/src/gauge_layout.c",
+          "firmware/gauge/main/src/reading_presentation.c",
+          "firmware/gauge/main/src/trend_curve.c",
+          "firmware/gauge/main/src/gauge_surface.c",
+          "firmware/gauge/main/src/display_showcase.c",
+          "firmware/gauge/main/src/display_idle_policy.c",
+          "firmware/gauge/main/src/display_units.c",
+          "firmware/gauge/main/src/page_action.c",
+          "firmware/gauge/main/inc",
+          "firmware/gauge/main/fonts",
+          "firmware/gauge/tests/ui_host",
+          "firmware/gauge/cmake/presentation.cmake",
+          "firmware/gauge/assets/fonts/sources.cmake",
+          "tools/render_gauge_gallery.py"
+        ],
+        "sha256": {
+          "firmware/gauge/assets/fonts/sources.cmake": "af0d2810752f3acde11eb8f006ee707aa1daf7318863903d9235d502e10b4eb2",
+          "firmware/gauge/cmake/presentation.cmake": "1a2affef467c8dfadc9205cc05b1725c1a05ba4e26e7679c612fe6d7cec6b4bf",
+          "firmware/gauge/main/fonts/notosans_medium_16.c": "ab4822d247da60c4aa55d9a8e9a7f51b31d3ee43b29496e8d14eb46ad0539fa0",
+          "firmware/gauge/main/fonts/notosans_medium_24.c": "5f778dd620048bf4dee3fca1eddfba744a4b1bffadc6eb24aab1fa260089b9fa",
+          "firmware/gauge/main/fonts/notosans_semibold_32.c": "7c665450e0de481d2705dc9ccd6cbc1d32ebdad8446b0bbd6f982e02c412f891",
+          "firmware/gauge/main/fonts/notosans_semibold_40.c": "485032fcd9983fcd5915db0980515b01a00db19010e2595d3dd8678e6e043509",
+          "firmware/gauge/main/fonts/notosans_semibold_48.c": "f5c7bbcab3b0a3f29bf6e3e2c6487683a2c813c74fb16bcb9735361781857727",
+          "firmware/gauge/main/fonts/notosans_semibold_64.c": "38e6ff7c6fbdb0819aa6b59c13a277884c21d43f45bacb4e5f1c36eb0a1d406a",
+          "firmware/gauge/main/inc/adapter_registry.h": "49061120d930a8db937f1aaf9304977ef081ba449aac54b53ae7df4ebe9f018b",
+          "firmware/gauge/main/inc/adapter_role_policy.h": "f3ec9d5c0c8c39b04cb35ac3433fae54a59a48b6b120c2f0464c07e208a0b48f",
+          "firmware/gauge/main/inc/adapter_status.h": "68a08ce0ec761a521b5fcb5574433aeb27f1fc00e07d1bdee6d7d3da05cc9b04",
+          "firmware/gauge/main/inc/alert_engine.h": "ce6fda7b3236b6103467c5ea47f72147ceaca0ee69ab515b2ff89f23217e08d4",
+          "firmware/gauge/main/inc/alert_events.h": "9667712631eaf1655338843e36025ac843c28497e4480bed62a7b3f8f277e010",
+          "firmware/gauge/main/inc/alert_runtime.h": "7b6eddb5bb35c1fd7b3670a049dbb4ef48af175066a9c4355eace13cb709cd7f",
+          "firmware/gauge/main/inc/ble_companion.h": "5371b8ce78f774966357878bf538aa8cb76b99883a6cb01e03b48de81617db95",
+          "firmware/gauge/main/inc/ble_init.h": "4c2d022adcc0b2c1e6567771308040a8aaaf7445a6191fa9bbd9a2daf97dc5d0",
+          "firmware/gauge/main/inc/ble_mgr.h": "2e2db377e2d565586ce7d6b2c143fdbddb151fc54aaa9338b8cdcf72cf142572",
+          "firmware/gauge/main/inc/ble_obd.h": "0ad2a795cc57c2ec12acb8466d77613af8dd720754b223834eacdea9a1ebee0c",
+          "firmware/gauge/main/inc/ble_recovery_policy.h": "f602239f99ec02baa1657e74b75407aa5b8c4d78eb13a77c2c80b4f042ae9d1a",
+          "firmware/gauge/main/inc/ble_security_policy.h": "cb1178b2531714213d487586bac1d94a45bd66f3cb8ab5268d67b8715b57e70d",
+          "firmware/gauge/main/inc/ble_util.h": "6afc1dbb9f68f34eecd6cb62f948d56f1807eb429421a2e6f65bed85e0ab6a08",
+          "firmware/gauge/main/inc/boot_health.h": "e5c5e66a8b9daaccad421898dc29f9553abec5b7ae8d438251cda3b99a5105e2",
+          "firmware/gauge/main/inc/companion_gatt_read.h": "7403a44fd3e299f4dc9c1313e2bd750ecf7a75aef07a72435afae051bacccbb3",
+          "firmware/gauge/main/inc/config.h": "8efe67ba14a2d350fa7acee1119d0873091697021b904f75c71e80ae574a74ba",
+          "firmware/gauge/main/inc/config_document.h": "817b2c09f26bdb8c7ad565e02babeed9110733916d52b97b94cecb7914dacd3c",
+          "firmware/gauge/main/inc/config_runtime.h": "fc170dd5ede69a99aae77b9bc2f4b2f4812cc47506c24c942c65c3a89a60d6e7",
+          "firmware/gauge/main/inc/config_store.h": "88681ad220ee632c129584510e9c0d3a0959f90fbf32d49952bded313d5b73d9",
+          "firmware/gauge/main/inc/config_transfer.h": "63aa617254db6358d7b1adeee381f765419550212ac151918325b7eaec3a626d",
+          "firmware/gauge/main/inc/config_trial.h": "979626652d1296fad2570222bb3bbab987e0afbfc1b868ad6974587daa3d6bdb",
+          "firmware/gauge/main/inc/config_trial_policy.h": "e081442c2b624d303494a9d82d2c67b05b805bf4e6947133ef41d4413d755a7d",
+          "firmware/gauge/main/inc/diagnostic_alerts.h": "fbb242e868fa82595f3eaf50b20c67cba86e4211ef98c898d0e86f8ab07fac28",
+          "firmware/gauge/main/inc/diagnostic_clear.h": "16e97226e6edd12133220684399301df67c9767a9b388ae35e8a510cdd961312",
+          "firmware/gauge/main/inc/diagnostic_filter.h": "9ac0bb9a141eb00f492d003d45efcfa0ea9e56648607d669d629a2dd9fc5ac35",
+          "firmware/gauge/main/inc/diagnostics_state.h": "4cf52144e13bab3610df152821cef755319bc64a557e8517080caf9d8d3beaa4",
+          "firmware/gauge/main/inc/display_idle_policy.h": "0431da3c4c9352711eedbfef7835c21401c4761fcf29b79960ff84645d9b7777",
+          "firmware/gauge/main/inc/display_settings.h": "ab5fa45b2a19695f34b244e1608f0857cb7bc91c89aa9c0ca19e1d953467bc93",
+          "firmware/gauge/main/inc/display_showcase.h": "3d4bcebe448b8b0e6f03fb7bcb81fdf22dd7dfae1269ed936a9911517379a82c",
+          "firmware/gauge/main/inc/display_units.h": "e801e513c679d05df568201ea3f21b2b642ba7b8ad409b9f2058e7ffa5626e7b",
+          "firmware/gauge/main/inc/elm_response.h": "be9ec803afd1641d64169e2ecbbdc0afd8a701a9b070bad39072209307b3fe2b",
+          "firmware/gauge/main/inc/gauge_board.h": "ede4f2c9595b65145c1667a2c47095b42f8525a816856c60743c6f4fd3288888",
+          "firmware/gauge/main/inc/gauge_gear_colors.h": "68a027db258e20a72fb56e67d9557cc5f2660a4af4fcfaec2b2d74a5a86a865f",
+          "firmware/gauge/main/inc/gauge_layout.h": "1ad39f9b519a3a1bc7b4d16fbb9d2fa31c26aca08d7c6ab8841b2ff3095c8512",
+          "firmware/gauge/main/inc/gauge_presentation.h": "a16c91daa04c1dc4cf8a33f7ee7cf224ca1ad86eadd06af33299ede4ea074744",
+          "firmware/gauge/main/inc/gauge_surface.h": "48cffcac2295c471a8fd0747f6eff9eb5750e17fdc8c30fc921c8d3f2c15adfb",
+          "firmware/gauge/main/inc/gauge_symbol_paths.inc": "1adde361b886c2be54da2c9b859e57488887e3c1fe9b5623f27d643611e93c27",
+          "firmware/gauge/main/inc/hardware_probe.h": "0cba119c59cdd5140558b9e0272e373499c9d1f2b548d490d5896b23550ea2d6",
+          "firmware/gauge/main/inc/jeep_abs_tcs_driver.h": "ef799b0718003b1502e11428e1746f61de49bbd3eb340a644dbb503ae72e0187",
+          "firmware/gauge/main/inc/jeep_idle_driver.h": "b2e58a9b3627e2d026500a12d21d598754af71c65e0215f0755b1b37f6227c2f",
+          "firmware/gauge/main/inc/jeep_idle_parked_test.h": "c53b52f580f730fc213477cdc6d8fa2f4e07d49b3b4ead6668a768db43b0c53f",
+          "firmware/gauge/main/inc/json_guard.h": "e506639b96420d86e2f02f541d4fd1bcdc07a54ff26e02f4e73c5b3e6cc543ba",
+          "firmware/gauge/main/inc/memory_health.h": "581caa759ff9999ba45bd564e1cc7b607e441a77c9fcaec1da4f205cca1c5d67",
+          "firmware/gauge/main/inc/obd.h": "1dcc810699f1c8a0594a7b7f2e7fa6a6d7beea00f36f113c7cf5caeeee402c25",
+          "firmware/gauge/main/inc/obd_adapter_profile.h": "fa633a51e4ad0b5d1f9ff4b2654d03b9129c2c1f7ce88e5fa432513e33d8a71d",
+          "firmware/gauge/main/inc/obd_trace.h": "d91bc344e1e19a1e2f175bff15c499488dae417ca1f46589047b14222e7189e0",
+          "firmware/gauge/main/inc/obd_wait_policy.h": "a1ee4eac232ed35b7c5cfe968e975dabbac679dd9c76154cad69c1f11d3300f2",
+          "firmware/gauge/main/inc/orientation_policy.h": "6b38634f8b33a92693ac340ef617c137eaf93f1782991547a6636b7561b0fef2",
+          "firmware/gauge/main/inc/orientation_qmi8658.h": "5a8f022fcb6f1106f829cd1b06f46e6bb6eef100ee42fc4bd67ffac5b57c357c",
+          "firmware/gauge/main/inc/orientation_runtime.h": "3efdf71267f655430180c8ee1a359b925f1d472aef4f09187c863f214fe752a9",
+          "firmware/gauge/main/inc/ota_recovery_policy.h": "cec7da2d3e2ec548e9ac593dec7838745a694779fa23356a19906377f0964cce",
+          "firmware/gauge/main/inc/ota_target_preflight.h": "378b14a92d6ceb426d612d2ce500e1b6e7cda0ff6d800a95dc975fb3aefa2e2c",
+          "firmware/gauge/main/inc/ota_transfer.h": "6ccff0061da6e09370a780d812bbb6d5b725dc111d216d41f6815d332573b904",
+          "firmware/gauge/main/inc/page_action.h": "b5fe82e3c9a648ea8d1e7aca0bdcbe6f7272cb413e6f1b662def6d14c49a6ea9",
+          "firmware/gauge/main/inc/page_save_policy.h": "9fbe32ef33c5d07528b0b6dbdf4312435ac3f3f422a92d2face7f75e62e18dcd",
+          "firmware/gauge/main/inc/pid_decoder.h": "242a79c3a5176aa20df3d9557d0291b94523e5a1a04f1fac779c9409bc17e92c",
+          "firmware/gauge/main/inc/platform_config.h": "54b5c27fd130aacde27689520f6d9ca4465c3eb836a1f7b89aa61a26654095f4",
+          "firmware/gauge/main/inc/platform_features.h": "609e71ebe59f65f3457c4b645f85115cc83ee6139bc67cc707491a6809dfc3a5",
+          "firmware/gauge/main/inc/poll_scheduler.h": "bf3e924de07ec14b50121808897959a754a377b395cbb7a63ecff1306f78f99d",
+          "firmware/gauge/main/inc/reading_policy.h": "2801469bb75f6c1285941a88fb4a36bf5ac1544a3e3cec411fe4654707e560b8",
+          "firmware/gauge/main/inc/reading_presentation.h": "f640b4bc8b820e2aa97454014cff85057b0c25361bee95d6ee38f1358ef71182",
+          "firmware/gauge/main/inc/smart_metric_catalog.h": "07616d942b72242c337edab13344475eb7df6a83e7f122fe5453e64f48f62a0d",
+          "firmware/gauge/main/inc/smart_page_policy.h": "70270d51b3b25e38a9bf01a7d9ba781e9e4382e34440e6424420ced8ec025817",
+          "firmware/gauge/main/inc/sunset_policy.h": "a6254eb2f6a8460ee5d79c6f82c566d9fe8d37568fc22579f37a1ce401c180f8",
+          "firmware/gauge/main/inc/sunset_runtime.h": "ffa3e1f9e1e394a8a0fb1cdec2346187818d1e196590e3f6b0846117f3b49f03",
+          "firmware/gauge/main/inc/temporary_idle.h": "8775db3517285b70077acb779bb29b426c9403fb4ab4ac5f1cb741d3de7ece27",
+          "firmware/gauge/main/inc/transfer_gate.h": "e7ea8274a7b69826b3334e25478f84b3f41624c8eb78f029b29337745ac2c6f0",
+          "firmware/gauge/main/inc/transmission_gear.h": "de0bbbe7cebf63f6b1ba5839f3fb8daa468218f62a16af1ce23f4cedcca5dd5f",
+          "firmware/gauge/main/inc/trend_curve.h": "38215e8eed651a91b2a8156700b2fb471f46472c8f0aedf4ea52f96e890083e5",
+          "firmware/gauge/main/inc/ui.h": "da61be51fc1d2d62e9a04d6806455d2aa924d1090cd3234df728236dd6921813",
+          "firmware/gauge/main/inc/util.h": "29f48af496e35dfd90d040d3fa088652fed30c95da8fa6451d95263d843107ba",
+          "firmware/gauge/main/inc/vehicle_commands.h": "f56a39fc5dc7da4c9a5fc6b9b960fa97648fa8e7d4dba0abad9aa73d22baa50e",
+          "firmware/gauge/main/inc/vehicle_commands_runtime.h": "531e965bb1199b64b96be3dc158da6f64f86f2149f3206886eed77d55d3d751a",
+          "firmware/gauge/main/inc/vehicle_idle_coolant.h": "489fc82b17044835b050abbfd16faf48b61c8339e8d9919d60088b77f02a5118",
+          "firmware/gauge/main/inc/wifi_bulk.h": "e0d9398cfe1d434d4220375d5b2858e9ef03e78c39b7a93be0844ecf006dfbe3",
+          "firmware/gauge/main/inc/wifi_bulk_io.h": "06967d6ada5eaf0e679400af76f9a266946d86067bee00094304690b997b637d",
+          "firmware/gauge/main/inc/wifi_bulk_policy.h": "db00ae5c3a3c381a4eebf81cd56f0d2961f830b2decc953aff5032201ab489b6",
+          "firmware/gauge/main/inc/worker_health.h": "c4176b6f49b7384032b27b3b50be14ed6fa6b169e40d0127abfecf1b5d80022d",
+          "firmware/gauge/main/src/display_idle_policy.c": "bd4d3bc3b1a50f09dff2e326aa4a5b7d9477cad4bebefd9cb08d64867ed693a6",
+          "firmware/gauge/main/src/display_showcase.c": "4ba214662d0bb7417c4034a629e5102d944b8a3052a0c5c1ce84275c2de88a21",
+          "firmware/gauge/main/src/display_units.c": "a2808c609eb367a2264f6f38a9c65639272090de22fbd0eeb6aa86c4dbdf33b0",
+          "firmware/gauge/main/src/gauge_layout.c": "ab55264c29c7ce675a7108cdfadf8da47cdd5f8b19220eb228096bb95227c88d",
+          "firmware/gauge/main/src/gauge_presentation.c": "84453aeea5c2c4a271188f6425a84e201047115dba4c8c183361e9a0766b36d2",
+          "firmware/gauge/main/src/gauge_presentation_reference.c": "a3bb876902a8b9de3a7b98de477391593e93455c6c889dfc0838523ef6bbad77",
+          "firmware/gauge/main/src/gauge_surface.c": "f32fc6bbff65b22382d53e308076cb82072b1e8611fa5c60e80f651de90f4379",
+          "firmware/gauge/main/src/page_action.c": "aec32811972f9572bff9079a74855501318f82f6a899462dde60f9bed2d01ada",
+          "firmware/gauge/main/src/reading_presentation.c": "f20e91a695ccabbc771f7b9b006bed2cfc6ad718abc71f545450c4bc13939162",
+          "firmware/gauge/main/src/trend_curve.c": "bcab8f89ecdefeb1dda7f8ebf1c83625123efc8f940696fcb80769a37e4cb1b7",
+          "firmware/gauge/main/src/ui.c": "80302c6372f9b585f25d94c82cb7c336695117a4b224e4f0e2526542b5e97100",
+          "firmware/gauge/tests/ui_host/CMakeLists.txt": "e8e07d22eebdd5082fabc68f04b0cf4913bb5fe4a0c2f294021b3682f605fe1a",
+          "firmware/gauge/tests/ui_host/connection_review.inc": "5f14a25bcf7198c34bfb625de35a45ed55b8bacb522f0f3a0f178084462e62dc",
+          "firmware/gauge/tests/ui_host/gesture_regression.inc": "8c7b447350a8e89065d9031240445879c80b938a043bfbac938b7d700fe1b0b2",
+          "firmware/gauge/tests/ui_host/lv_conf.h": "9febe67c6853174c32159bdf4a1271b5819439fa205d486c6195162bc877fda1",
+          "firmware/gauge/tests/ui_host/stubs/ble_mgr.h": "870822b00df8f4935eb2cc0ace8b6f6313f1ad4b387c551cdeab8c6297960822",
+          "firmware/gauge/tests/ui_host/stubs/esp_err.h": "b659e5e2f875eb1bb5c06f374a8a735c1379671d8860ef394f0958b39307f50f",
+          "firmware/gauge/tests/ui_host/stubs/esp_heap_caps.h": "ed5cc4e031e90edc4f560b80c6d4306d1107325a9a7646c31563d1b6eb40395a",
+          "firmware/gauge/tests/ui_host/stubs/esp_log.h": "7f9aa63a8dc3ab2c774520fffbaf7e12adc9270a4efa447bbbb0f4edd2dd1146",
+          "firmware/gauge/tests/ui_host/stubs/esp_log_color.h": "b3adf106d95b8934f690943f2921308b90be5b766c4c8ba250c792de56400201",
+          "firmware/gauge/tests/ui_host/stubs/esp_lvgl_port.h": "f5204a4cf7b4ffc46e5307a6993b18dc267f75d9298b9c41f06ed938d79e8fc6",
+          "firmware/gauge/tests/ui_host/stubs/esp_partition.h": "9eb85a7e6a221c79fdc0bdb3a4c105a85750836613e3677e77ba263060007db1",
+          "firmware/gauge/tests/ui_host/stubs/esp_timer.h": "6721d9476ef6b62e171488b966e298a8fa9fda16e4cef7aa1375a0e95333e029",
+          "firmware/gauge/tests/ui_host/stubs/freertos/FreeRTOS.h": "54199ececb104375af43aab5fc3e02f09715319bc3bfcc9df1d130e94dabec39",
+          "firmware/gauge/tests/ui_host/stubs/freertos/projdefs.h": "eaf5283b1ab35f4c3a3312f4172c4968e16ba9754d5355f5c7be159d23182017",
+          "firmware/gauge/tests/ui_host/stubs/freertos/queue.h": "d85fa954cea180066d2c9a0f9af2364c53ecaab956d5fb49ec112d77e5a077ae",
+          "firmware/gauge/tests/ui_host/stubs/freertos/task.h": "b376e7feafbe3afded20bc53230438d4435302de6d6856ae48cdbd216ca85cce",
+          "firmware/gauge/tests/ui_host/stubs/portmacro.h": "f050e65ba1b7ae07942ec43cf0589675bb4ff7475aa154f23f50982204921460",
+          "firmware/gauge/tests/ui_host/stubs/sdkconfig.h": "68406ac34e5616a424a4137191598e92441e221680d8e1c1caff30446f453aa6",
+          "firmware/gauge/tests/ui_host/stubs/util.h": "3835e23455df29249bf62678f08430b2b8805cb9c0095f7b5f8280bdd1d6a752",
+          "firmware/gauge/tests/ui_host/ui_render_test.c": "1b586771b2af68329f74600fc6a8222107742366eef1b64665e1a9cd0b3161a5",
+          "tools/render_gauge_gallery.py": "f2764334c567393932a3057051f8896caa0d5ae55c193b072d1865e6e83d8bc9"
+        },
+        "reviewPolicy": "Capture baseline from the actual current production render. Changed inputs need semantic review or recapture; age alone does not require recapture."
+      },
+      "previousCaptureRevision": "a4341d6328fa70f4e4c6ba1c90515763ba4ad8e3",
+      "capturedOn": "2026-11-09",
+      "command": "CMake EGAUGE_HOST_RGB565=ON EGAUGE_PARKED_IDLE_TEST=ON; gauge_ui_render artifacts/storefront-gauge-frames; tools/render_gauge_gallery.py exporter",
+      "dependency": "Existing pinned LVGL 9.2.2 component from shared project checkout",
+      "exportSourceCommit": "c42b6566ba093c81ce3d64d07fcff84931a10ff4",
+      "exportedAtUtc": "2026-11-09T19:53:29.112993+00:00",
+      "equivalenceReview": {
+        "reviewedOn": "2026-11-11",
+        "reason": "PR #160 only adds a callback on the boot logo layer. The published captures show reading layouts and action or fault states. Their render functions and fixtures are unchanged.",
+        "evidence": [
+          "firmware/gauge/main/src/ui.c",
+          "docs/architecture/display-experience.md"
+        ],
+        "sha256": {
+          "firmware/gauge/assets/fonts/sources.cmake": "af0d2810752f3acde11eb8f006ee707aa1daf7318863903d9235d502e10b4eb2",
+          "firmware/gauge/cmake/presentation.cmake": "1a2affef467c8dfadc9205cc05b1725c1a05ba4e26e7679c612fe6d7cec6b4bf",
+          "firmware/gauge/main/fonts/notosans_medium_16.c": "ab4822d247da60c4aa55d9a8e9a7f51b31d3ee43b29496e8d14eb46ad0539fa0",
+          "firmware/gauge/main/fonts/notosans_medium_24.c": "5f778dd620048bf4dee3fca1eddfba744a4b1bffadc6eb24aab1fa260089b9fa",
+          "firmware/gauge/main/fonts/notosans_semibold_32.c": "7c665450e0de481d2705dc9ccd6cbc1d32ebdad8446b0bbd6f982e02c412f891",
+          "firmware/gauge/main/fonts/notosans_semibold_40.c": "485032fcd9983fcd5915db0980515b01a00db19010e2595d3dd8678e6e043509",
+          "firmware/gauge/main/fonts/notosans_semibold_48.c": "f5c7bbcab3b0a3f29bf6e3e2c6487683a2c813c74fb16bcb9735361781857727",
+          "firmware/gauge/main/fonts/notosans_semibold_64.c": "38e6ff7c6fbdb0819aa6b59c13a277884c21d43f45bacb4e5f1c36eb0a1d406a",
+          "firmware/gauge/main/inc/adapter_registry.h": "49061120d930a8db937f1aaf9304977ef081ba449aac54b53ae7df4ebe9f018b",
+          "firmware/gauge/main/inc/adapter_role_policy.h": "f3ec9d5c0c8c39b04cb35ac3433fae54a59a48b6b120c2f0464c07e208a0b48f",
+          "firmware/gauge/main/inc/adapter_status.h": "68a08ce0ec761a521b5fcb5574433aeb27f1fc00e07d1bdee6d7d3da05cc9b04",
+          "firmware/gauge/main/inc/alert_engine.h": "ce6fda7b3236b6103467c5ea47f72147ceaca0ee69ab515b2ff89f23217e08d4",
+          "firmware/gauge/main/inc/alert_events.h": "9667712631eaf1655338843e36025ac843c28497e4480bed62a7b3f8f277e010",
+          "firmware/gauge/main/inc/alert_runtime.h": "7b6eddb5bb35c1fd7b3670a049dbb4ef48af175066a9c4355eace13cb709cd7f",
+          "firmware/gauge/main/inc/ble_companion.h": "5371b8ce78f774966357878bf538aa8cb76b99883a6cb01e03b48de81617db95",
+          "firmware/gauge/main/inc/ble_init.h": "4c2d022adcc0b2c1e6567771308040a8aaaf7445a6191fa9bbd9a2daf97dc5d0",
+          "firmware/gauge/main/inc/ble_mgr.h": "2e2db377e2d565586ce7d6b2c143fdbddb151fc54aaa9338b8cdcf72cf142572",
+          "firmware/gauge/main/inc/ble_obd.h": "0ad2a795cc57c2ec12acb8466d77613af8dd720754b223834eacdea9a1ebee0c",
+          "firmware/gauge/main/inc/ble_recovery_policy.h": "f602239f99ec02baa1657e74b75407aa5b8c4d78eb13a77c2c80b4f042ae9d1a",
+          "firmware/gauge/main/inc/ble_security_policy.h": "cb1178b2531714213d487586bac1d94a45bd66f3cb8ab5268d67b8715b57e70d",
+          "firmware/gauge/main/inc/ble_util.h": "6afc1dbb9f68f34eecd6cb62f948d56f1807eb429421a2e6f65bed85e0ab6a08",
+          "firmware/gauge/main/inc/boot_health.h": "e5c5e66a8b9daaccad421898dc29f9553abec5b7ae8d438251cda3b99a5105e2",
+          "firmware/gauge/main/inc/companion_gatt_read.h": "7403a44fd3e299f4dc9c1313e2bd750ecf7a75aef07a72435afae051bacccbb3",
+          "firmware/gauge/main/inc/config.h": "8efe67ba14a2d350fa7acee1119d0873091697021b904f75c71e80ae574a74ba",
+          "firmware/gauge/main/inc/config_document.h": "817b2c09f26bdb8c7ad565e02babeed9110733916d52b97b94cecb7914dacd3c",
+          "firmware/gauge/main/inc/config_runtime.h": "fc170dd5ede69a99aae77b9bc2f4b2f4812cc47506c24c942c65c3a89a60d6e7",
+          "firmware/gauge/main/inc/config_store.h": "88681ad220ee632c129584510e9c0d3a0959f90fbf32d49952bded313d5b73d9",
+          "firmware/gauge/main/inc/config_transfer.h": "63aa617254db6358d7b1adeee381f765419550212ac151918325b7eaec3a626d",
+          "firmware/gauge/main/inc/config_trial.h": "979626652d1296fad2570222bb3bbab987e0afbfc1b868ad6974587daa3d6bdb",
+          "firmware/gauge/main/inc/config_trial_policy.h": "e081442c2b624d303494a9d82d2c67b05b805bf4e6947133ef41d4413d755a7d",
+          "firmware/gauge/main/inc/diagnostic_alerts.h": "fbb242e868fa82595f3eaf50b20c67cba86e4211ef98c898d0e86f8ab07fac28",
+          "firmware/gauge/main/inc/diagnostic_clear.h": "16e97226e6edd12133220684399301df67c9767a9b388ae35e8a510cdd961312",
+          "firmware/gauge/main/inc/diagnostic_filter.h": "9ac0bb9a141eb00f492d003d45efcfa0ea9e56648607d669d629a2dd9fc5ac35",
+          "firmware/gauge/main/inc/diagnostics_state.h": "4cf52144e13bab3610df152821cef755319bc64a557e8517080caf9d8d3beaa4",
+          "firmware/gauge/main/inc/display_idle_policy.h": "0431da3c4c9352711eedbfef7835c21401c4761fcf29b79960ff84645d9b7777",
+          "firmware/gauge/main/inc/display_settings.h": "ab5fa45b2a19695f34b244e1608f0857cb7bc91c89aa9c0ca19e1d953467bc93",
+          "firmware/gauge/main/inc/display_showcase.h": "3d4bcebe448b8b0e6f03fb7bcb81fdf22dd7dfae1269ed936a9911517379a82c",
+          "firmware/gauge/main/inc/display_units.h": "e801e513c679d05df568201ea3f21b2b642ba7b8ad409b9f2058e7ffa5626e7b",
+          "firmware/gauge/main/inc/elm_response.h": "be9ec803afd1641d64169e2ecbbdc0afd8a701a9b070bad39072209307b3fe2b",
+          "firmware/gauge/main/inc/gauge_board.h": "ede4f2c9595b65145c1667a2c47095b42f8525a816856c60743c6f4fd3288888",
+          "firmware/gauge/main/inc/gauge_gear_colors.h": "68a027db258e20a72fb56e67d9557cc5f2660a4af4fcfaec2b2d74a5a86a865f",
+          "firmware/gauge/main/inc/gauge_layout.h": "1ad39f9b519a3a1bc7b4d16fbb9d2fa31c26aca08d7c6ab8841b2ff3095c8512",
+          "firmware/gauge/main/inc/gauge_presentation.h": "a16c91daa04c1dc4cf8a33f7ee7cf224ca1ad86eadd06af33299ede4ea074744",
+          "firmware/gauge/main/inc/gauge_surface.h": "48cffcac2295c471a8fd0747f6eff9eb5750e17fdc8c30fc921c8d3f2c15adfb",
+          "firmware/gauge/main/inc/gauge_symbol_paths.inc": "1adde361b886c2be54da2c9b859e57488887e3c1fe9b5623f27d643611e93c27",
+          "firmware/gauge/main/inc/hardware_probe.h": "0cba119c59cdd5140558b9e0272e373499c9d1f2b548d490d5896b23550ea2d6",
+          "firmware/gauge/main/inc/jeep_abs_tcs_driver.h": "ef799b0718003b1502e11428e1746f61de49bbd3eb340a644dbb503ae72e0187",
+          "firmware/gauge/main/inc/jeep_idle_driver.h": "b2e58a9b3627e2d026500a12d21d598754af71c65e0215f0755b1b37f6227c2f",
+          "firmware/gauge/main/inc/jeep_idle_parked_test.h": "c53b52f580f730fc213477cdc6d8fa2f4e07d49b3b4ead6668a768db43b0c53f",
+          "firmware/gauge/main/inc/json_guard.h": "e506639b96420d86e2f02f541d4fd1bcdc07a54ff26e02f4e73c5b3e6cc543ba",
+          "firmware/gauge/main/inc/memory_health.h": "581caa759ff9999ba45bd564e1cc7b607e441a77c9fcaec1da4f205cca1c5d67",
+          "firmware/gauge/main/inc/obd.h": "1dcc810699f1c8a0594a7b7f2e7fa6a6d7beea00f36f113c7cf5caeeee402c25",
+          "firmware/gauge/main/inc/obd_adapter_profile.h": "fa633a51e4ad0b5d1f9ff4b2654d03b9129c2c1f7ce88e5fa432513e33d8a71d",
+          "firmware/gauge/main/inc/obd_trace.h": "d91bc344e1e19a1e2f175bff15c499488dae417ca1f46589047b14222e7189e0",
+          "firmware/gauge/main/inc/obd_wait_policy.h": "a1ee4eac232ed35b7c5cfe968e975dabbac679dd9c76154cad69c1f11d3300f2",
+          "firmware/gauge/main/inc/orientation_policy.h": "6b38634f8b33a92693ac340ef617c137eaf93f1782991547a6636b7561b0fef2",
+          "firmware/gauge/main/inc/orientation_qmi8658.h": "5a8f022fcb6f1106f829cd1b06f46e6bb6eef100ee42fc4bd67ffac5b57c357c",
+          "firmware/gauge/main/inc/orientation_runtime.h": "3efdf71267f655430180c8ee1a359b925f1d472aef4f09187c863f214fe752a9",
+          "firmware/gauge/main/inc/ota_recovery_policy.h": "cec7da2d3e2ec548e9ac593dec7838745a694779fa23356a19906377f0964cce",
+          "firmware/gauge/main/inc/ota_target_preflight.h": "378b14a92d6ceb426d612d2ce500e1b6e7cda0ff6d800a95dc975fb3aefa2e2c",
+          "firmware/gauge/main/inc/ota_transfer.h": "6ccff0061da6e09370a780d812bbb6d5b725dc111d216d41f6815d332573b904",
+          "firmware/gauge/main/inc/page_action.h": "b5fe82e3c9a648ea8d1e7aca0bdcbe6f7272cb413e6f1b662def6d14c49a6ea9",
+          "firmware/gauge/main/inc/page_save_policy.h": "9fbe32ef33c5d07528b0b6dbdf4312435ac3f3f422a92d2face7f75e62e18dcd",
+          "firmware/gauge/main/inc/pid_decoder.h": "242a79c3a5176aa20df3d9557d0291b94523e5a1a04f1fac779c9409bc17e92c",
+          "firmware/gauge/main/inc/platform_config.h": "54b5c27fd130aacde27689520f6d9ca4465c3eb836a1f7b89aa61a26654095f4",
+          "firmware/gauge/main/inc/platform_features.h": "609e71ebe59f65f3457c4b645f85115cc83ee6139bc67cc707491a6809dfc3a5",
+          "firmware/gauge/main/inc/poll_scheduler.h": "bf3e924de07ec14b50121808897959a754a377b395cbb7a63ecff1306f78f99d",
+          "firmware/gauge/main/inc/reading_policy.h": "2801469bb75f6c1285941a88fb4a36bf5ac1544a3e3cec411fe4654707e560b8",
+          "firmware/gauge/main/inc/reading_presentation.h": "f640b4bc8b820e2aa97454014cff85057b0c25361bee95d6ee38f1358ef71182",
+          "firmware/gauge/main/inc/smart_metric_catalog.h": "07616d942b72242c337edab13344475eb7df6a83e7f122fe5453e64f48f62a0d",
+          "firmware/gauge/main/inc/smart_page_policy.h": "70270d51b3b25e38a9bf01a7d9ba781e9e4382e34440e6424420ced8ec025817",
+          "firmware/gauge/main/inc/sunset_policy.h": "a6254eb2f6a8460ee5d79c6f82c566d9fe8d37568fc22579f37a1ce401c180f8",
+          "firmware/gauge/main/inc/sunset_runtime.h": "ffa3e1f9e1e394a8a0fb1cdec2346187818d1e196590e3f6b0846117f3b49f03",
+          "firmware/gauge/main/inc/temporary_idle.h": "8775db3517285b70077acb779bb29b426c9403fb4ab4ac5f1cb741d3de7ece27",
+          "firmware/gauge/main/inc/transfer_gate.h": "e7ea8274a7b69826b3334e25478f84b3f41624c8eb78f029b29337745ac2c6f0",
+          "firmware/gauge/main/inc/transmission_gear.h": "de0bbbe7cebf63f6b1ba5839f3fb8daa468218f62a16af1ce23f4cedcca5dd5f",
+          "firmware/gauge/main/inc/trend_curve.h": "38215e8eed651a91b2a8156700b2fb471f46472c8f0aedf4ea52f96e890083e5",
+          "firmware/gauge/main/inc/ui.h": "ca53eaea6a6a258e2605293aafbd458513ff00eb3a2f2d9893932f862957e6d8",
+          "firmware/gauge/main/inc/util.h": "29f48af496e35dfd90d040d3fa088652fed30c95da8fa6451d95263d843107ba",
+          "firmware/gauge/main/inc/vehicle_commands.h": "f56a39fc5dc7da4c9a5fc6b9b960fa97648fa8e7d4dba0abad9aa73d22baa50e",
+          "firmware/gauge/main/inc/vehicle_commands_runtime.h": "531e965bb1199b64b96be3dc158da6f64f86f2149f3206886eed77d55d3d751a",
+          "firmware/gauge/main/inc/vehicle_idle_coolant.h": "489fc82b17044835b050abbfd16faf48b61c8339e8d9919d60088b77f02a5118",
+          "firmware/gauge/main/inc/wifi_bulk.h": "e0d9398cfe1d434d4220375d5b2858e9ef03e78c39b7a93be0844ecf006dfbe3",
+          "firmware/gauge/main/inc/wifi_bulk_io.h": "06967d6ada5eaf0e679400af76f9a266946d86067bee00094304690b997b637d",
+          "firmware/gauge/main/inc/wifi_bulk_policy.h": "db00ae5c3a3c381a4eebf81cd56f0d2961f830b2decc953aff5032201ab489b6",
+          "firmware/gauge/main/inc/worker_health.h": "c4176b6f49b7384032b27b3b50be14ed6fa6b169e40d0127abfecf1b5d80022d",
+          "firmware/gauge/main/src/display_idle_policy.c": "bd4d3bc3b1a50f09dff2e326aa4a5b7d9477cad4bebefd9cb08d64867ed693a6",
+          "firmware/gauge/main/src/display_showcase.c": "4ba214662d0bb7417c4034a629e5102d944b8a3052a0c5c1ce84275c2de88a21",
+          "firmware/gauge/main/src/display_units.c": "a2808c609eb367a2264f6f38a9c65639272090de22fbd0eeb6aa86c4dbdf33b0",
+          "firmware/gauge/main/src/gauge_layout.c": "ab55264c29c7ce675a7108cdfadf8da47cdd5f8b19220eb228096bb95227c88d",
+          "firmware/gauge/main/src/gauge_presentation.c": "84453aeea5c2c4a271188f6425a84e201047115dba4c8c183361e9a0766b36d2",
+          "firmware/gauge/main/src/gauge_presentation_reference.c": "a3bb876902a8b9de3a7b98de477391593e93455c6c889dfc0838523ef6bbad77",
+          "firmware/gauge/main/src/gauge_surface.c": "f32fc6bbff65b22382d53e308076cb82072b1e8611fa5c60e80f651de90f4379",
+          "firmware/gauge/main/src/page_action.c": "aec32811972f9572bff9079a74855501318f82f6a899462dde60f9bed2d01ada",
+          "firmware/gauge/main/src/reading_presentation.c": "f20e91a695ccabbc771f7b9b006bed2cfc6ad718abc71f545450c4bc13939162",
+          "firmware/gauge/main/src/trend_curve.c": "bcab8f89ecdefeb1dda7f8ebf1c83625123efc8f940696fcb80769a37e4cb1b7",
+          "firmware/gauge/main/src/ui.c": "80406e70eac54cedc68f93eb2ff339099f15f25ada5a86331799f82250d96788",
+          "firmware/gauge/tests/ui_host/CMakeLists.txt": "e8e07d22eebdd5082fabc68f04b0cf4913bb5fe4a0c2f294021b3682f605fe1a",
+          "firmware/gauge/tests/ui_host/connection_review.inc": "5f14a25bcf7198c34bfb625de35a45ed55b8bacb522f0f3a0f178084462e62dc",
+          "firmware/gauge/tests/ui_host/gesture_regression.inc": "8c7b447350a8e89065d9031240445879c80b938a043bfbac938b7d700fe1b0b2",
+          "firmware/gauge/tests/ui_host/lv_conf.h": "9febe67c6853174c32159bdf4a1271b5819439fa205d486c6195162bc877fda1",
+          "firmware/gauge/tests/ui_host/stubs/ble_mgr.h": "870822b00df8f4935eb2cc0ace8b6f6313f1ad4b387c551cdeab8c6297960822",
+          "firmware/gauge/tests/ui_host/stubs/esp_err.h": "b659e5e2f875eb1bb5c06f374a8a735c1379671d8860ef394f0958b39307f50f",
+          "firmware/gauge/tests/ui_host/stubs/esp_heap_caps.h": "ed5cc4e031e90edc4f560b80c6d4306d1107325a9a7646c31563d1b6eb40395a",
+          "firmware/gauge/tests/ui_host/stubs/esp_log.h": "7f9aa63a8dc3ab2c774520fffbaf7e12adc9270a4efa447bbbb0f4edd2dd1146",
+          "firmware/gauge/tests/ui_host/stubs/esp_log_color.h": "b3adf106d95b8934f690943f2921308b90be5b766c4c8ba250c792de56400201",
+          "firmware/gauge/tests/ui_host/stubs/esp_lvgl_port.h": "f5204a4cf7b4ffc46e5307a6993b18dc267f75d9298b9c41f06ed938d79e8fc6",
+          "firmware/gauge/tests/ui_host/stubs/esp_partition.h": "9eb85a7e6a221c79fdc0bdb3a4c105a85750836613e3677e77ba263060007db1",
+          "firmware/gauge/tests/ui_host/stubs/esp_timer.h": "6721d9476ef6b62e171488b966e298a8fa9fda16e4cef7aa1375a0e95333e029",
+          "firmware/gauge/tests/ui_host/stubs/freertos/FreeRTOS.h": "54199ececb104375af43aab5fc3e02f09715319bc3bfcc9df1d130e94dabec39",
+          "firmware/gauge/tests/ui_host/stubs/freertos/projdefs.h": "eaf5283b1ab35f4c3a3312f4172c4968e16ba9754d5355f5c7be159d23182017",
+          "firmware/gauge/tests/ui_host/stubs/freertos/queue.h": "d85fa954cea180066d2c9a0f9af2364c53ecaab956d5fb49ec112d77e5a077ae",
+          "firmware/gauge/tests/ui_host/stubs/freertos/task.h": "b376e7feafbe3afded20bc53230438d4435302de6d6856ae48cdbd216ca85cce",
+          "firmware/gauge/tests/ui_host/stubs/portmacro.h": "f050e65ba1b7ae07942ec43cf0589675bb4ff7475aa154f23f50982204921460",
+          "firmware/gauge/tests/ui_host/stubs/sdkconfig.h": "68406ac34e5616a424a4137191598e92441e221680d8e1c1caff30446f453aa6",
+          "firmware/gauge/tests/ui_host/stubs/util.h": "3835e23455df29249bf62678f08430b2b8805cb9c0095f7b5f8280bdd1d6a752",
+          "firmware/gauge/tests/ui_host/ui_render_test.c": "1b586771b2af68329f74600fc6a8222107742366eef1b64665e1a9cd0b3161a5",
+          "tools/render_gauge_gallery.py": "f2764334c567393932a3057051f8896caa0d5ae55c193b072d1865e6e83d8bc9"
+        }
+      }
+    }
+  },
+  "files": {
+    "assets/72dd7afaeda18d95/app/car.png": "f5ea11a4defc8ef9fd8dbb470247a7cfa6ac69c4fd92e905aa0271877231c9be",
+    "assets/72dd7afaeda18d95/app/gauge.png": "31ba3abaed21dc3f498569fd3af264047f493a1f1864806d0dd297ac3a1b70fc",
+    "assets/72dd7afaeda18d95/app/settings.png": "105859ed65f2129e0437ccab392aba29679f6d7046460d42cd97d24207390c30",
+    "assets/72dd7afaeda18d95/app.js": "9e30c5a10236371932c23d8c254bb8efcd89ce378fd97b67e2e8ae4112b127c3",
+    "assets/72dd7afaeda18d95/favicon.svg": "036561f3456fabfb52500c4639a1e3cb73f9aac9908bc55857f5409238c0d418",
+    "assets/72dd7afaeda18d95/gauge/action-active.png": "82e040841531764d23ac56a87c6819d8f73c9d799f46881e0028e94a96a2d3a4",
+    "assets/72dd7afaeda18d95/gauge/action-ready.png": "9c98caa876563eb58449b7b2e3d66add1c4f7b84cee2ec622d810f9ecfbda204",
+    "assets/72dd7afaeda18d95/gauge/alerts.png": "c1c364b21fbfe50433c4190d5bb741d33b13d78256876bda2e9fd12bb414b0f5",
+    "assets/72dd7afaeda18d95/gauge/arc.png": "8092107ed59d4d7e190cf3ea1e2d61cf1d98082419fd7a1060fb5dcc5202c1bd",
+    "assets/72dd7afaeda18d95/gauge/bar.png": "afe919b23446010148ab90444501f5312e12a34b7a43021d12a6d8a4f2d7868f",
+    "assets/72dd7afaeda18d95/gauge/dual-arc.png": "6795f671e77a475d53ecdbed9ad009d9b69852b49dddb7eaae4367bee72d159f",
+    "assets/72dd7afaeda18d95/gauge/dual.png": "55a3fc28a49292c3fe4dbe0e3b6547504422533812b5164117db8f73c2d012ce",
+    "assets/72dd7afaeda18d95/gauge/lcd-startup.png": "05dca7df2b2c957cb59e723c8f7d92a43730608f78fece9dc6cd15e89855ed52",
+    "assets/72dd7afaeda18d95/gauge/numeric.png": "305c4f96aab478adc208478a95fe2218a8e5916308ce79b325c94845cb2563ef",
+    "assets/72dd7afaeda18d95/gauge/oled-arc.png": "b566e3c67db51d2692cb615bd3fb83b88a07773f1e79f3b960e005c7d2f8de0c",
+    "assets/72dd7afaeda18d95/gauge/oled-dual-arc.png": "9738943c094c0eba3d3b989e4819c6d87428fc1e1d5415e43f1d3b8640d58f64",
+    "assets/72dd7afaeda18d95/gauge/oled-numeric.png": "5e89232053dee4ae637e4983cc389f6d85bc70770024647143c3fe1c0d9ae284",
+    "assets/72dd7afaeda18d95/gauge/oled-startup.png": "5c8ee51ea59b009e718552957f5680c3d6ef2c4707e67885976d77a4e93a6552",
+    "assets/72dd7afaeda18d95/gauge/trend.png": "b5d5ee11a739566cdf8eebf24fe2e958e6ba88220c5f3c664b9427be580b5584",
+    "assets/72dd7afaeda18d95/hardware/lcd.webp": "4ecb81533117ef0381d3dfe91a01a86a983b83a47c43da558adc7302896e73d0",
+    "assets/72dd7afaeda18d95/hardware/oled-usb-hero.webp": "8b83a8fd95088b9a671d3648359304ccc6c796edffa37b1b8a16d07a08d91a92",
+    "assets/72dd7afaeda18d95/hardware/oled.webp": "e8b0b6b55737cb14f0b39299ce5326eded4446a82f04455ee92a2316afe159b9",
+    "assets/72dd7afaeda18d95/recovery/EMVIARY-LICENSE.txt": "1c8d9a702be563982eb0bb41999de64263917b81e78301077e1675a151793071",
+    "assets/72dd7afaeda18d95/recovery/ESPTOOL-LICENSE.txt": "1c25f29242785d63e9adb0be7fdc137551dfbbc0756b622fcd26d9cd7de3a4f3",
+    "assets/72dd7afaeda18d95/recovery/PAKO-LICENSE.txt": "a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539",
+    "assets/72dd7afaeda18d95/recovery/SPARK-MD5-LICENSE.txt": "9c4214d48030b7e877ed2fd76044ea079a987c9b3f01f9b6964ba4a475a5a13d",
+    "assets/72dd7afaeda18d95/recovery/recovery.js": "2dbaa733a5f3fd0e5749800cf37282074a4eecf4fea8cc04b062780e2a2eabbe",
+    "assets/72dd7afaeda18d95/recovery/recovery.js.LEGAL.txt": "ca53c21239e46a611128c711fce885c654e58aee24860869e1af2d8df9666be8",
+    "assets/72dd7afaeda18d95/social-preview.png": "45c36546a6a67e3aa1af055a1731b824b78f6bc6e90c210f1ab18035bbeb5065",
+    "assets/72dd7afaeda18d95/styles.css": "cdfa6ee17770f2c28b9df14105d1ce772408aabf378ce40795f0ee4c07fd4046",
+    "downloads/dev60-9e973ad2c2da/application.bin": "bb8591ba9c24f8671b8e5e84a81fe22a67c88e175a57bb59ee6cf5e5e3c30c8d",
+    "downloads/dev60-9e973ad2c2da/bootloader.bin": "586e5edf5f2d5788ee22d4b6a3eae3a7fedcea555fea1c066bfd55ae2b6532ee",
+    "downloads/dev60-9e973ad2c2da/ota-selector.bin": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+    "downloads/dev60-9e973ad2c2da/partition-table.bin": "ee365b70963d7aa1f92d7d5d868314f956d88af5b336d8acc063c426aec9752e",
+    "downloads/dev60-9e973ad2c2da/recovery.json": "499326bf066771aaa1dc17e7965ae4a13b5a40e76f20908d93fde781cc4d1f92",
+    "downloads/egauge-android-f47c10aa9cc9b6af.apk": "f47c10aa9cc9b6afca2e84ef9d5574e46fdf7bf10fcf1b93b43e48abeac10280",
+    "downloads/manifest.json": "dcc43a5737399e7eb80fa3a05f114eb227b4f416d151ffe426a0b57623433066",
+    "favicon.svg": "036561f3456fabfb52500c4639a1e3cb73f9aac9908bc55857f5409238c0d418",
+    "index.html": "3332b6cd450161c0879481c3dcb02f18503b64cd9e43bc865637a2293120a1f3",
+    "recovery/index.html": "3dfd7de2ced0b65176e26959d02f23f5156aeb159fea987a6e9cf627da986a9e",
+    "robots.txt": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+    "site-review.json": "1e625b3d59be1ef3f90f6da94fae303a6ca578ac233c07fee8982329c920f9a7"
+  }
+}
