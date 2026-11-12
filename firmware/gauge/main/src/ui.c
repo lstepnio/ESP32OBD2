@@ -507,6 +507,12 @@ void ui_boot_logo_early(void)
     lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
     lv_refr_now(NULL);
 }
+void ui_boot_logo_decorate(void (*decorate)(lv_obj_t *parent))
+{
+    if (boot_logo && !lv_obj_has_flag(boot_logo, LV_OBJ_FLAG_HIDDEN))
+        decorate(boot_logo);
+}
+
 void ui_waiting_logo_enable(ui_t *ui, bool enabled)
 {
     if (!ui)

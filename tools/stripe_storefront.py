@@ -17,7 +17,6 @@ from uuid import uuid4
 
 from storefront import (
     ADAPTER,
-    ADAPTER_BY_OFFER,
     ADAPTER_NAME,
     OFFERS,
     US_SHIPPING_CENTS,
@@ -77,6 +76,8 @@ def save_state(path, state):
 
 
 def setup(stripe, path, prices, shipping_cents):
+    # The LCD flashing service is inquiry-only and does not affect shipped orders.
+    prices = {key: prices[key] for key in (*OFFERS, ADAPTER)}
     if not 0 < shipping_cents <= 10_000:
         raise ValueError("Supply a positive test shipping amount in USD cents")
     if test_object(stripe.request("/v1/tax/settings"))["status"] != "active":
@@ -135,12 +136,10 @@ def setup(stripe, path, prices, shipping_cents):
             save_state(path, state)
         return item["price"]
 
+    adapter_price = ensure_price(ADAPTER, ADAPTER_NAME, state.setdefault("adapter", {}))
     for offer, (_, _, name) in OFFERS.items():
         item = state["offers"].setdefault(offer, {})
         gauge_price = ensure_price(offer, name, item)
-        adapter_price = ensure_price(
-            ADAPTER_BY_OFFER[offer], ADAPTER_NAME, item.setdefault("adapter", {})
-        )
         if "link" not in item:
             parameters = {
                 "line_items[0][price]": gauge_price,
@@ -188,10 +187,10 @@ def verify_order(stripe, state, session_id):
     lines = line_items["data"]
     allowed = {item["price"]: state["prices"][offer]}
     adapter_price = item.get("adapter", {}).get("price")
-    adapter_key = ADAPTER_BY_OFFER[offer]
+    # Earlier sandbox links stored their adapter price separately for each gauge.
+    adapter_key = "vgate_lcd" if adapter_price and offer == "lcd" else ADAPTER
     if not adapter_price:
         adapter_price = state.get("adapter", {}).get("price")
-        adapter_key = ADAPTER
     if adapter_price:
         allowed[adapter_price] = state["prices"][adapter_key]
     purchased = {line["price"]["id"]: line for line in lines}

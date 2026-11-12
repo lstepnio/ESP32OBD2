@@ -15,9 +15,10 @@ class StorefrontTest(unittest.TestCase):
     def test_each_product_has_a_distinct_inquiry_and_price(self):
         actions = storefront_actions(storefront_catalog())
         self.assertEqual(actions["LCD_PRICE"], "$79 USD")
+        self.assertEqual(actions["LCD_FLASH_PRICE"], "$20 USD")
+        self.assertNotIn("LCD_FLASH_ORDER", actions)
         self.assertEqual(actions["OLED_PRICE"], "$199 USD")
         self.assertEqual(actions["VGATE_PRICE"], "$55 USD")
-        self.assertEqual(actions["VGATE_LCD_PRICE"], "$30 USD")
         self.assertEqual(actions["US_SHIPPING_PRICE"], "$9.95 USD")
         self.assertNotIn("VGATE_ORDER", actions)
         self.assertIn('href="#custom-form"', actions["LCD_ORDER"])
@@ -32,15 +33,13 @@ class StorefrontTest(unittest.TestCase):
                 "https://buy.stripe.com/test_example",
                 "https://buy.stripe.com/liveExample",
             ):
-                with self.subTest(url=url), self.assertRaises(ValueError):
-                    path.write_text(
-                        json.dumps(
-                            {
-                                "lcd": {"amountCents": 7900, "checkout": None},
-                                "oled": {"amountCents": 19900, "checkout": url},
-                                "vgate": {"amountCents": 5500, "checkout": None},
-                                "vgate_lcd": {"amountCents": 3000, "checkout": None},
-                            }
+                for offer in ("oled", "lcd_flash"):
+                    with self.subTest(url=url, offer=offer), self.assertRaises(ValueError):
+                        catalog = json.loads(
+                            (
+                                Path(__file__).resolve().parents[2] / "website/storefront.json"
+                            ).read_text()
                         )
-                    )
-                    storefront_catalog(path)
+                        catalog[offer]["checkout"] = url
+                        path.write_text(json.dumps(catalog))
+                        storefront_catalog(path)
