@@ -3,6 +3,7 @@
 #include "adapter_role_policy.h"
 #include "vehicle_idle_coolant.h"
 #include "worker_health.h"
+#include "stall_monitor.h"
 #include "boot_health.h"
 #include "memory_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
@@ -629,6 +630,31 @@ static bool confirm_abs_record_discard(void)
     lv_obj_delete(prompt);
     lvgl_port_unlock();
     return confirmed;
+}
+
+static void stall_monitor_task(void *arg)
+{
+    (void)arg;
+    const worker_id_t watched[]                    = {WORKER_APP, WORKER_UI};
+    bool              stalled[ARRAY_SIZE(watched)] = {false};
+    uint32_t          started                      = (uint32_t)(esp_timer_get_time() / 1000);
+    for (;;)
+    {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+        for (unsigned i = 0; i < ARRAY_SIZE(watched); ++i)
+        {
+            worker_health_t health = worker_health_snapshot(watched[i], now);
+            bool            next   = worker_is_stalled(health, now - started);
+            if (next != stalled[i])
+            {
+                stalled[i] = next;
+                ESP_LOGW(TAG, "Worker %s %s (progress=%" PRIu32 ", age_ms=%" PRIu32 ")", worker_health_name(watched[i]),
+                         next ? "stalled" : "resumed", health.progress_count,
+                         health.observed ? health.age_ms : now - started);
+            }
+        }
+    }
 }
 
 static void boot_health_task(void *arg)
@@ -1621,6 +1647,8 @@ void app_main(void)
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
+    if (xTaskCreate(stall_monitor_task, "stall_monitor", 3072, NULL, 4, NULL) != pdPASS)
+        ESP_LOGW(TAG, "Runtime stall monitor unavailable");
     bool config_trial = g_runtime && config_trial_needs_confirmation(g_running_config_record.revision);
     if (ota_trial_pending() || config_trial)
     {
