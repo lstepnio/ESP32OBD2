@@ -305,3 +305,5 @@ and cancels a held gesture when a touch read fails or ages past 150 ms.
 Wi-Fi reports Ready after the current network's socket starts listening.
 A listener that fails to start within five seconds closes the temporary network.
 OLED trial firmware also requires a completed display frame and no panel fault.
+Failed Wi-Fi teardown retains ownership of the driver and netif. The next
+maintenance start must finish teardown before opening another network.

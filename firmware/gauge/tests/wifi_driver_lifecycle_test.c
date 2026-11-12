@@ -27,6 +27,7 @@ static esp_netif_t  netif;
 static esp_netif_t *ap_netif;
 static bool         wifi_initialized, netif_live, driver_live, default_handlers, custom_handler;
 static int          failure, stops, deinits, destroys;
+static bool         fail_deinit;
 enum
 {
     NETIF_INIT = 1,
@@ -109,6 +110,8 @@ static esp_err_t esp_wifi_stop(void)
 static esp_err_t esp_wifi_deinit(void)
 {
     assert(driver_live);
+    if (fail_deinit)
+        return -1;
     driver_live = false;
     ++deinits;
     return ESP_OK;
@@ -150,6 +153,13 @@ int main(void)
     assert(initialize_wifi());
     assert(initialize_wifi());
     release_wifi_driver();
+    clean();
+    assert(initialize_wifi());
+    fail_deinit = true;
+    assert(!release_wifi_driver());
+    assert(driver_live && wifi_initialized && netif_live && custom_handler);
+    fail_deinit = false;
+    assert(release_wifi_driver());
     clean();
     puts("Wi-Fi lifecycle failures, retries and idempotent close passed");
 }
