@@ -179,7 +179,14 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
 
 private const val GENERIC_GAUGE_FAILURE = "Your gauge could not finish this request"
 
-internal fun globalFailureNotice(reason: String?): StatusUi? = reason?.let { friendlyFailure(it) }?.takeUnless { it.title == GENERIC_GAUGE_FAILURE }
+internal fun globalFailureNotice(reason: String?): StatusUi? = reason?.let {
+    val failure = friendlyFailure(it)
+    if (failure.title == GENERIC_GAUGE_FAILURE) {
+        StatusUi(it, "Try the change again.", StatusTone.Error)
+    } else {
+        failure
+    }
+}
 
 fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
