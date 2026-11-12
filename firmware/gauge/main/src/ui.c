@@ -1832,7 +1832,8 @@ static void ui_task(lv_timer_t *timer)
         bool visible = !ui->pairing_visible && !ui->calibration_mode && !atomic_load(&ui->showcase_active) &&
                        !ui->rendered_alert.attention && !ui->command_menu_visible &&
                        (ui->action.progress || ui->action_feedback);
-        if (ui->action.config.vehicle_menu && !(ui->action_feedback && ui->action_feedback_cooldown))
+        bool cooldown = ui->action_feedback && ui->action_feedback_cooldown;
+        if (ui->action.config.vehicle_menu && (!cooldown || EGAUGE_EXPERIMENTAL_QUIET_ACTIONS))
         {
             lv_obj_add_flag(ui->action_label, LV_OBJ_FLAG_HIDDEN);
             if (ui->rendered_action_progress != progress)
@@ -1843,21 +1844,27 @@ static void ui_task(lv_timer_t *timer)
             arrow[2] = (lv_point_precise_t){px(10), px(6)};
             arrow[3] = arrow[1];
             arrow[4] = (lv_point_precise_t){px(5), px(14)};
+            static lv_point_precise_t stroke[2], pause_bar[2];
+            stroke[0] = pause_bar[0] = (lv_point_precise_t){0, 0};
+            stroke[1] = (lv_point_precise_t){px(10), 0};
+            pause_bar[1] = (lv_point_precise_t){0, px(8)};
             for (unsigned i = 0; i < 5; ++i)
             {
                 if (!ui->action_arrows[i])
                 {
                     ui->action_arrows[i] = lv_line_create(ui->widgets.gauge_content);
-                    static lv_point_precise_t stroke[2];
-                    stroke[0] = (lv_point_precise_t){px(0), px(0)};
-                    stroke[1] = (lv_point_precise_t){px(10), px(0)};
-                    lv_line_set_points(ui->action_arrows[i], EGAUGE_EXPERIMENTAL_QUIET_ACTIONS ? stroke : arrow,
-                                       EGAUGE_EXPERIMENTAL_QUIET_ACTIONS ? 2 : 5);
+                    lv_line_set_points(ui->action_arrows[i], arrow, 5);
                     lv_obj_set_style_line_width(ui->action_arrows[i], px(2), 0);
-                    lv_obj_set_style_line_color(ui->action_arrows[i], lv_color_hex(EGAUGE_EXPERIMENTAL_QUIET_ACTIONS ? 0x9fc8dc : color_accent), 0);
+                    lv_obj_set_style_line_color(ui->action_arrows[i], lv_color_hex(color_accent), 0);
                 }
-                lv_obj_set_pos(ui->action_arrows[i], gx(125 - (int)progress * 10 + (int)i * 20), gy(205));
-                show(ui->action_arrows[i], visible && i < progress);
+                if (EGAUGE_EXPERIMENTAL_QUIET_ACTIONS)
+                {
+                    lv_line_set_points(ui->action_arrows[i], cooldown ? pause_bar : stroke, 2);
+                    lv_obj_set_style_line_color(ui->action_arrows[i], lv_color_hex(cooldown ? 0x8196a3 : 0x9fc8dc), 0);
+                }
+                int x = cooldown ? 117 + (int)i * 6 : 125 - (int)progress * 10 + (int)i * 20;
+                lv_obj_set_pos(ui->action_arrows[i], gx(x), gy(205));
+                show(ui->action_arrows[i], visible && i < (cooldown ? 2U : progress));
             }
         }
         else
