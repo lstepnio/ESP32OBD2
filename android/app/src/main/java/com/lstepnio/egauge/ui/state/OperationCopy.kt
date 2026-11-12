@@ -186,6 +186,12 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val updateTrust =
         update || listOf("firmware", "update", "catalog", "github").any { it in message }
     return when {
+        "confirmed measurement units on this phone" in message -> StatusUi(
+            "Phone units could not sync",
+            "The gauge kept its units. Phone previews may use the previous units while the app retries.",
+            StatusTone.Stale
+        )
+
         "appearance settings" in message -> StatusUi(
             "Your preference was not saved",
             "Try changing it again.",

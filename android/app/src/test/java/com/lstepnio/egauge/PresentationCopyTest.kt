@@ -143,6 +143,10 @@ class PresentationCopyTest {
     @Test fun routineRecoveryDoesNotRaiseAGlobalWarning() {
         assertNull(globalFailureNotice("Unexpected read response"))
         assertNotNull(globalFailureNotice("Could not save appearance settings. Try again."))
+        assertEquals(
+            "Phone units could not sync",
+            globalFailureNotice("Could not save the confirmed measurement units on this phone")?.title
+        )
         val failed = OperationUi(visible = true, needsCheck = true)
         assertFalse(showTransferBanner(failed.copy(kind = OperationKind.DISPLAY_SETTINGS)))
         assertFalse(showTransferBanner(failed.copy(kind = OperationKind.UPDATE)))

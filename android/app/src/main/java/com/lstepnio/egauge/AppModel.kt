@@ -1090,18 +1090,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (value.version >= 2 && presentationPreferences.measurementSystem != value.units) {
             // This read already owns the operation lease. Do not launch a nested user operation.
             val updated = presentationPreferences.copy(measurementSystem = value.units)
+            val failureMessage = "Could not save the confirmed measurement units on this phone"
             suspendResult { durableWrites.write { presentationStore.write(updated) } }
                 .onSuccess { saved ->
                     if (saved) {
                         presentationPreferences = updated
+                        if (presentationError == failureMessage) presentationError = null
                     } else {
-                        presentationError =
-                            "Could not save the confirmed measurement units on this phone"
+                        presentationError = failureMessage
                     }
                 }
                 .onFailure {
-                    presentationError =
-                        "Could not save the confirmed measurement units on this phone"
+                    presentationError = failureMessage
                 }
         }
     }
