@@ -110,6 +110,23 @@ data to the real API; use browser request interception for success/error checks.
 
 ## Screens and provenance
 
+### Website design review
+
+The OLED-first shop proposal is in
+[`website-shop`](../docs/design/gauge-ui-proposal/website-shop/index.html).
+Serve the verified draft on port 8795 and launch the existing feedback server:
+
+```sh
+python3 docs/design/gauge-ui-proposal/review_server.py --review website-shop --port 8796 --storage /path/to/persistent/website-shop-v1.json
+```
+
+Open `/docs/design/gauge-ui-proposal/website-shop/index.html` on port 8796.
+The server freezes the review images, shares saved feedback across browsers and
+rejects conflicting revisions. Keep feedback outside disposable worktrees. A new
+round needs a separate storage file; retain byte-identical approved sections via
+the existing `seed_from` path. `preview-manifest.json` identifies the draft reviewed.
+Approval of a section is design feedback, not a live publication receipt.
+
 App images come from the existing Compose capture procedure in
 [quality guidance](../docs/development/quality.md). Gauge images use the production
 LVGL host renderer and [gallery exporter](../tools/render_gauge_gallery.py).
@@ -202,6 +219,23 @@ commit and private backup location in the task outcome; do not duplicate project
 status here.
 
 ## Public offer
+
+The shop leads with the enclosed OLED. The hero's secondary link goes directly to
+the free LCD DIY section, with vendor sourcing, free manual flashing and source
+access. Keep the free offer scoped to LCD firmware; hardware, assisted browser
+flashing and licensed OLED software are distinct. Do not imply all repository
+material has a project-wide open-source license before one is selected.
+
+Product cards keep price, tax/shipping, OLED lead time and adapter exclusion close
+to the request controls. Comparison, exact dimensions/CAD and assisted LCD setup
+use native disclosures. Direct links to engineering details open the disclosure.
+The optional adapter has one price. Live checkout remains disabled.
+
+The selected USB-connected hero is a restrained AI-assisted adaptation of the
+actual enclosed Waveshare board. [Hero provenance](hardware/hero-provenance.json)
+records the reference, full prompt and limits. It is product artwork, not a new
+production screen capture or hardware qualification. The interactive gallery
+continues to use the existing production-rendered screen assets.
 
 The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
 free LCD firmware and licensed OLED bundle. The shop comparison distinguishes

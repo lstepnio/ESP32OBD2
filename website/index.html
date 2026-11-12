@@ -21,7 +21,8 @@
   <header class="header wrap">
     <a class="brand" href="#" aria-label="eGauge home"><span class="brand-symbol" aria-hidden="true"></span>eGauge<span class="brand-dot">.</span></a>
     <nav aria-label="Main navigation">
-      <a href="#hardware">Shop</a>
+      <a href="#oled-bundle">OLED</a>
+      <a href="#lcd-diy">Free LCD firmware</a>
       <a href="#experience">The gauge</a>
       <a href="#app">The App</a>
       <a href="#roadmap">Progress</a>
@@ -32,26 +33,116 @@
   <main id="main">
     <section class="hero wrap" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="status-dot"></span> A CUSTOMIZABLE OBD-II GAUGE</p>
-        <h1 id="hero-title">Your vehicle.<br>Your <span class="serif">view.</span></h1>
-        <p class="hero-description">{{CLAIM_CORE}}</p>
+        <p class="eyebrow"><span class="status-dot"></span> MEET eGAUGE OLED</p>
+        <h1 id="hero-title">Small gauge.<br>Big <span class="serif">possibilities.</span></h1>
+        <p class="hero-description">Your readings, beautifully in view. A sharp AMOLED touchscreen, a compact case, and a dashboard you make your own.</p>
         <div class="hero-actions">
-          <a class="button primary" href="#hardware">Shop eGauge <span aria-hidden="true">↗</span></a>
-          <a class="button secondary" href="/recovery/">Get free LCD firmware <span aria-hidden="true">↗</span></a>
+          <a class="button primary" href="#oled-bundle">Explore OLED <span aria-hidden="true">↗</span></a>
+          <a class="hero-free-link" href="#lcd-diy">Start free with LCD <span aria-hidden="true">↗</span></a>
         </div>
       </div>
-      <div class="hero-art">
-        <span class="art-orbit orbit-one" aria-hidden="true"></span><span class="art-orbit orbit-two" aria-hidden="true"></span>
-        <div class="gauge-shell hero-gauge"><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="Arc layout, coolant temperature 92 degrees Celsius"></div>
-      </div>
+      <figure class="hero-art hero-photo">
+        <img src="{{ASSET_PREFIX}}/hardware/oled-usb-hero.webp" width="1536" height="1024" fetchpriority="high" alt="Enclosed eGauge OLED with a USB-C cable, showing gear and engine speed">
+        <figcaption>1.75″ AMOLED. Touch enabled. Built around your vehicle.</figcaption>
+      </figure>
     </section>
 
     <section class="wrap section-space" id="hardware" aria-labelledby="hardware-title">
       <div class="section-heading">
         <p class="eyebrow">THE eGAUGE SHOP</p>
-        <h2 id="hardware-title">Pick your gauge.</h2>
-        <p>Build your own gauge on an affordable LCD board or get the larger OLED gauge in an enclosure with firmware preinstalled.</p>
+        <h2 id="hardware-title">More of what matters.</h2>
+        <p>{{CLAIM_CORE}}</p>
       </div>
+      <div class="store-grid">
+        <article class="store-card store-card-featured" id="oled-bundle">
+          <div class="store-art store-art-oled">
+            <figure>
+              <div class="store-device store-device-oled">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED board in a black protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-dual-arc.png" width="466" height="466" alt="OLED viewed face-on with gear and engine speed">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-oled store-device-tilted">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-numeric.png" width="466" height="466" alt="OLED viewed at an angle with a large engine speed reading and small connection icons">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
+          </div>
+          <div class="store-copy">
+            <p class="eyebrow">THE COMPLETE OLED GAUGE</p>
+            <h3>OLED 1.75″</h3>
+            <div class="store-price">
+              <p><strong>{{OLED_PRICE}}</strong> plus tax and shipping</p>
+              <p>Estimated lead time is about 30 days.</p>
+            </div>
+            <p>Unbox the enclosed gauge with firmware already installed. Choose your readings and make the dash yours. Software license included for the version it ships with. OBD-II adapter sold separately.</p>
+            <ul class="store-highlights">
+              <li><strong>See more at a glance.</strong> A sharp 1.75″ AMOLED screen with clear, spacious layouts.</li>
+              <li><strong>Day to night, automatically.</strong> Brightness follows your daylight schedule.</li>
+              <li><strong>The right reading, up front.</strong> Smart Cycle responds to changing driving conditions.</li>
+              <li><strong>One view of your vehicle.</strong> Optional second-adapter support for separate engine and transmission ports.</li>
+            </ul>
+            <div class="store-actions">
+              {{OLED_ORDER}}
+              <a class="text-link" href="#engineering">Dimensions &amp; comparison ↓</a>
+            </div>
+          </div>
+        </article>
+        <article class="store-card lcd-diy-card" id="lcd-diy">
+          <div class="store-art">
+            <figure>
+              <div class="store-device store-device-lcd-front">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="LCD viewed face-on with the coolant temperature arc">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-lcd-angle">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare LCD board with exposed PCB and USB-C connector" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/trend.png" width="240" height="240" alt="LCD viewed at an angle with a coolant temperature trend">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
+          </div>
+          <div class="store-copy">
+            <p class="eyebrow">THE BUILD-IT-YOURSELF OPTION</p>
+            <h3>Start free.<br>Make it yours.</h3>
+            <p>Free LCD firmware. Public source code. Your hardware, your project. You don’t need to buy a board from us.</p>
+            <ol class="diy-steps">
+              <li><strong>Bring a board.</strong> Get the bare 1.28″ touchscreen board from <a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">Waveshare</a> or <a href="https://www.amazon.com/s?k=Waveshare+ESP32-S3-Touch-LCD-1.28">find it on Amazon</a>. Match model ESP32-S3-Touch-LCD-1.28.</li>
+              <li><strong>Make it an eGauge.</strong> Download the firmware and flash it manually for free. Set up your pages with the Android app.</li>
+              <li><strong>Make it your own.</strong> Explore the source, change the software, and build around your setup.</li>
+            </ol>
+            <div class="store-actions">
+              <a class="button primary" href="https://github.com/lstepnio/ESP32OBD2/releases">Get free LCD firmware ↗</a>
+              <a class="text-link" href="https://github.com/lstepnio/ESP32OBD2/tree/main/firmware/gauge">Explore the code ↗</a>
+            </div>
+            <details class="product-details">
+              <summary>Prefer a head start? <span aria-hidden="true">+</span></summary>
+              <p><strong>{{LCD_PRICE}}</strong> for a preflashed bare board, plus tax and shipping. Or <strong>{{LCD_FLASH_PRICE}}</strong> for browser-based flashing with limited setup support on your own board.</p>
+              <div class="store-links">{{LCD_ORDER}}<a href="#custom-form" data-order-request="the browser flasher with limited setup support for my S3-LCD-1.28 v1">Request browser flashing ↗</a></div>
+            </details>
+          </div>
+        </article>
+      </div>
+      <section class="store-addon" aria-labelledby="store-addon-title">
+        <div>
+          <p class="eyebrow">OPTIONAL ADD-ON</p>
+          <h3 id="store-addon-title">Vgate iCar Pro BLE adapter</h3>
+          <p>Sold separately for either gauge. You can use a compatible BLE OBD-II adapter you already own.</p>
+        </div>
+        <div class="store-addon-actions">
+          <p><strong>{{VGATE_PRICE}}</strong></p>
+          <a href="#custom-form" data-order-request="S3-LCD-1.28 v1 hardware with a Vgate iCar Pro BLE adapter">Request LCD + adapter ↗</a>
+          <a href="#custom-form" data-order-request="S3-OLED-1.75 v1 with preinstalled firmware and a Vgate iCar Pro BLE adapter">Request OLED + adapter ↗</a>
+        </div>
+      </section>
+      <p class="section-note">U.S. shipping is {{US_SHIPPING_PRICE}} per order, plus applicable sales tax.</p>
+      <details class="engineering-details" id="engineering">
+        <summary>Compare displays, dimensions &amp; hardware <span aria-hidden="true">+</span></summary>
       <section class="panel-compare" id="panel-compare" aria-labelledby="panel-compare-title">
         <header class="panel-compare-head">
           <div>
@@ -87,95 +178,6 @@
         </div>
         <p class="panel-scale-note">Screen diameters shown to relative scale.</p>
       </section>
-      <div class="store-grid">
-        <article class="store-card">
-          <div class="store-art">
-            <figure>
-              <div class="store-device store-device-lcd-front">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/arc.png" width="240" height="240" alt="LCD viewed face-on with the coolant temperature arc">
-              </div>
-              <figcaption>Face-on</figcaption>
-            </figure>
-            <figure>
-              <div class="store-device store-device-lcd-angle">
-                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/lcd.webp" width="640" height="640" alt="Waveshare LCD board with exposed PCB and USB-C connector" aria-hidden="true">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/trend.png" width="240" height="240" alt="LCD viewed at an angle with a coolant temperature trend">
-              </div>
-              <figcaption>Angled</figcaption>
-            </figure>
-          </div>
-          <div class="store-copy">
-            <p class="eyebrow">BARE DEVELOPMENT BOARD · S3-LCD-1.28 v1</p>
-            <h3>LCD 1.28″ DIY</h3>
-            <div class="store-price">
-              <p><strong>{{LCD_PRICE}}</strong> preflashed board</p>
-              <p><strong>{{LCD_FLASH_PRICE}}</strong> browser-based flashing with limited setup support</p>
-            </div>
-            <p>Get the board wherever you like. Download the firmware and flash it manually for free, or use our browser flasher over USB with limited help getting set up. The source code is available on GitHub.</p>
-            <div class="store-actions">
-              {{LCD_ORDER}}
-              <div class="store-links">
-                <a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">Source your own board ↗</a>
-                <a href="https://github.com/lstepnio/ESP32OBD2/releases">Download free firmware ↗</a>
-                <a href="#custom-form" data-order-request="the browser flasher with limited setup support for my S3-LCD-1.28 v1">Request browser flashing ↗</a>
-                <a href="https://github.com/lstepnio/ESP32OBD2/tree/main/firmware/gauge">Browse the source on GitHub ↗</a>
-              </div>
-            </div>
-          </div>
-        </article>
-        <article class="store-card store-card-featured" id="oled-bundle">
-          <div class="store-art store-art-oled">
-            <figure>
-              <div class="store-device store-device-oled">
-                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED board in a black protective case" aria-hidden="true">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-dual-arc.png" width="466" height="466" alt="OLED viewed face-on with gear and engine speed">
-              </div>
-              <figcaption>Face-on</figcaption>
-            </figure>
-            <figure>
-              <div class="store-device store-device-oled store-device-tilted">
-                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
-                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-numeric.png" width="466" height="466" alt="OLED viewed at an angle with a large engine speed reading and small connection icons">
-              </div>
-              <figcaption>Angled</figcaption>
-            </figure>
-          </div>
-          <div class="store-copy">
-            <p class="eyebrow">ENCLOSED GAUGE · S3-OLED-1.75 v1</p>
-            <h3>OLED 1.75″</h3>
-            <div class="store-price">
-              <p><strong>{{OLED_PRICE}}</strong> plus tax and shipping</p>
-              <p>Estimated lead time is about 30 days.</p>
-            </div>
-            <p>Includes the enclosed gauge, preinstalled firmware, and a license for the firmware major version it ships with.</p>
-            <ul class="store-highlights">
-              <li><strong>466 × 466 AMOLED touchscreen.</strong> Layouts designed for the larger round screen give readings more room. Larger type and high contrast make them easier to read at a glance in bright and low light.</li>
-              <li><strong>Smart Cycle.</strong> Brings relevant readings forward as driving conditions change.</li>
-              <li><strong>Automatic Day and Night brightness.</strong> Set your daytime and nighttime brightness and let the gauge switch with your daylight schedule.</li>
-              <li><strong>Engine and transmission on one dashboard.</strong> Most vehicles need one OBD-II adapter. If your Hemi-swapped Jeep with a ZF 8HP70 has separate engine and transmission diagnostic ports, add a second adapter to see both sets of readings together.</li>
-            </ul>
-            <div class="store-actions">
-              {{OLED_ORDER}}
-              <div class="store-links">
-                <a href="https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75/blob/main/HARDWARE_REFERENCE.md">View hardware specs ↗</a>
-              </div>
-            </div>
-          </div>
-        </article>
-      </div>
-      <section class="store-addon" aria-labelledby="store-addon-title">
-        <div>
-          <p class="eyebrow">OPTIONAL ADD-ON</p>
-          <h3 id="store-addon-title">Vgate iCar Pro BLE adapter</h3>
-          <p>Sold separately for either gauge. You can use a compatible BLE OBD-II adapter you already own.</p>
-        </div>
-        <div class="store-addon-actions">
-          <p><strong>{{VGATE_PRICE}}</strong></p>
-          <a href="#custom-form" data-order-request="S3-LCD-1.28 v1 hardware with a Vgate iCar Pro BLE adapter">Request LCD + adapter ↗</a>
-          <a href="#custom-form" data-order-request="S3-OLED-1.75 v1 with preinstalled firmware and a Vgate iCar Pro BLE adapter">Request OLED + adapter ↗</a>
-        </div>
-      </section>
-      <p class="section-note">U.S. shipping is {{US_SHIPPING_PRICE}} per order, plus applicable sales tax.</p>
       <div class="store-comparison" tabindex="0" role="region" aria-labelledby="comparison-title">
         <table>
           <caption id="comparison-title">Compare the builds</caption>
@@ -193,7 +195,9 @@
         </table>
       </div>
       <p class="section-note">Allow extra room for the USB-C plug and cable bend. Readings depend on your vehicle and adapter. <a href="https://www.amazon.com/dp/B06XGB4873">View the Vgate adapter on Amazon ↗</a></p>
-      <p class="store-credit">Device views show examples rendered for each board. Board imagery is adapted from Waveshare product photos.</p>
+      <p class="store-credit">Hardware: S3-LCD-1.28 v1 and S3-OLED-1.75 v1. Product imagery is adapted from Waveshare photographs with eGauge display examples.</p>
+        <p class="section-note">Most vehicles use one adapter. A Hemi-swapped Jeep with a separate ZF 8HP70 transmission port can use the OLED’s second-adapter support to combine both sources. <a href="https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75/blob/main/HARDWARE_REFERENCE.md">OLED hardware reference ↗</a></p>
+      </details>
     </section>
 
     <section class="preview-section" id="experience" aria-labelledby="preview-title">
@@ -226,11 +230,11 @@
         <figure><div class="phone-frame"><img src="{{ASSET_PREFIX}}/app/settings.png" width="390" height="844" loading="lazy" alt="Settings tab with display preferences and Smart page cycling"></div><figcaption><strong>Settings</strong><span>Adjust brightness, rotation and cycling.</span></figcaption></figure>
       </div>
       <p class="section-note"><strong>Available on Android 10 and later. iPhone support is next, starting with essential gauge setup.</strong> <a href="/recovery/">Download for Android ↗</a></p>
-      <p class="section-note">Optional phone notifications require a gauge connection and notification permission. Advanced filters can hide expected faults from everyday views while preserving the diagnostic records.</p>
+      <details><summary>Notifications and fault filters <span aria-hidden="true">+</span></summary><p>Optional phone notifications require a gauge connection and notification permission. Advanced filters can hide expected faults from everyday views while preserving the diagnostic records.</p></details>
     </section>
 
     <section class="offroad-section section-space" id="offroad-actions" aria-labelledby="offroad-title">
-      <div class="wrap offroad-summary">
+      <details class="wrap"><summary>Explore off-road actions in private testing <span aria-hidden="true">+</span></summary><div class="offroad-summary">
         <div>
           <p class="eyebrow">PRIVATE DEVELOPMENT</p>
           <h2 id="offroad-title">Off-road actions</h2>
@@ -246,7 +250,7 @@
           <figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-ready.png" width="240" height="240" loading="lazy" alt="Air up action page with five-minute preset and Hold to start control"><figcaption>Air up preset</figcaption></figure>
           <figure><img class="firmware-screen" src="{{ASSET_PREFIX}}/gauge/action-active.png" width="240" height="240" loading="lazy" alt="Air up running page with countdown and direct Stop control"><figcaption>Running countdown</figcaption></figure>
         </div>
-      </div>
+      </div></details>
     </section>
 
     <section class="roadmap wrap section-space" id="roadmap" aria-labelledby="roadmap-title">

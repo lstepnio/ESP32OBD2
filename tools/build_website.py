@@ -283,6 +283,7 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     for board in ("lcd", "oled"):
         asset = f"hardware/{board}.webp"
         files[asset] = (source / asset).read_bytes()
+    files["hardware/oled-usb-hero.webp"] = (source / "hardware/oled-usb-hero.webp").read_bytes()
     files["social-preview.png"] = (source / "social-preview.png").read_bytes()
     for asset in sorted((source / "recovery").iterdir()):
         if asset.suffix != ".html" and asset.name != "package.json":
