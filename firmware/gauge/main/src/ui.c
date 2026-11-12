@@ -137,6 +137,7 @@ struct _ui_t
     lv_obj_t           *action_label, *action_arrows[5];
     lv_obj_t           *command_menu, *command_button, *command_back, *command_title, *command_value, *command_note,
         *command_button_text, *command_ring;
+    lv_obj_t   *command_page_dots[4];
     uint8_t     command_page, command_request_page, command_page_count, command_pages[4];
     bool        command_suspended, command_press, command_moved, command_waiting, idle_protection;
     int16_t     command_x, command_y;
@@ -3037,6 +3038,20 @@ static void refresh_vehicle_menu(ui_t *ui)
         lv_obj_remove_state(ui->command_button, LV_STATE_DISABLED);
     else
         lv_obj_add_state(ui->command_button, LV_STATE_DISABLED);
+    if (EGAUGE_EXPERIMENTAL_QUIET_ACTIONS)
+    {
+        unsigned count = ui->command_page_count;
+        for (unsigned i = 0; i < 4; ++i)
+        {
+            lv_obj_t *dot = ui->command_page_dots[i];
+            show(dot, count > 1 && i < count);
+            if (count > 1 && i < count)
+            {
+                lv_obj_align(dot, LV_ALIGN_TOP_MID, px(5 * (2 * (int)i - (int)count + 1)), px(213));
+                lv_obj_set_style_bg_color(dot, lv_color_hex(i == ui->command_page ? 0x9fc8dc : 0x324550), 0);
+            }
+        }
+    }
     /* Quiet transitions share this face. The arc remains only for critical attention. */
     show(ui->command_ring, false);
     if (ui->status_dirty)
@@ -3248,6 +3263,17 @@ void ui_show_vehicle_actions(ui_t *ui)
                                   LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(ui->command_button, LV_OPA_COVER, 0);
         ui->command_button_text = plain_label(ui->command_button, color_background);
+        if (EGAUGE_EXPERIMENTAL_QUIET_ACTIONS)
+        {
+            for (unsigned i = 0; i < 4; ++i)
+            {
+                lv_obj_t *dot = plain_view(ui->command_menu, 4, 4);
+                lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+                lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+                lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+                ui->command_page_dots[i] = dot;
+            }
+        }
         lv_obj_t *targets[]     = {ui->command_back, ui->command_button};
         for (unsigned i = 0; i < 2; ++i)
         {
