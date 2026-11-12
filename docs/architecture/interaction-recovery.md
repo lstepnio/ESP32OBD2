@@ -239,13 +239,26 @@ verify the durable owner after restart. Never silently recreate ownership or era
 bonds from routine retry. An absent owner record is an unresolved persistence or
 reset event until supported by evidence; do not infer its cause from a pairing screen.
 
+## Quiet display settings recovery
+
+When a display settings write loses its acknowledgement, keep the last verified
+values visible and show inline readback progress in Settings. The normal bounded
+settings poll reconciles the current gauge values. An uncertain display write
+neither replays automatically nor marks the vehicle dashboard for review. Generic
+request failures stay out of the global banner. Keep specific guidance with the
+affected task and preserve the underlying response for diagnostics.
+
 ## One-session Wi-Fi update bootstrap
 
 The signed update path reads protected boot identity and opens the temporary AP
 inside one authenticated BLE session and one 90-second operation budget. It rejects
 an already-running image before AP startup. If AP startup has an uncertain result
 or is cancelled, GATT cleanup completes before a bounded five-second best-effort
-AP-close operation; the original failure/cancellation is retained, without replay.
+AP-close operation. After cleanup, a transient connection failure can retry
+startup once with the same gauge and signed package. From the first flash
+preparation command onward, any uncertain result requires readback and no
+automatic replay. While readback is pending, Updates shows progress and continues
+checking automatically.
 A failed identity read does not request or close an AP. The existing update lease,
 network-loss/socket cancellation, signature validation, healthy post-boot identity
 and recovery journal remain authoritative. CONNECTING_WIFI/first-response and flash

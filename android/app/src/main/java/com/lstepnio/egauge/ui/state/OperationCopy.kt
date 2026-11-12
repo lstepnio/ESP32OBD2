@@ -21,6 +21,12 @@ data class OperationUi(
 fun successBannerMayDismiss(state: OperationUi): Boolean = state.visible && state.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
     !state.busy && !state.needsCheck && state.status.tone == StatusTone.Success
 
+internal fun showTransferBanner(operation: OperationUi): Boolean = operation.visible && operation.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+    (
+        operation.busy || successBannerMayDismiss(operation) ||
+            (operation.kind == OperationKind.CONFIGURATION && operation.needsCheck)
+        )
+
 /** Presentation must be stricter than a generic ACTIVE stage, which also represents successful reads. */
 fun isConfirmedSetup(
     expectedRevision: Long?,
@@ -49,7 +55,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
 
         OperationStage.PREPARING -> when {
             update -> StatusUi(
-                "Preparing update",
+                if (state.title == "Reconnecting for update") state.title else "Preparing update",
                 "Keep your gauge powered and the app open.",
                 StatusTone.Loading
             )
@@ -170,6 +176,10 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
         update
     )
 }
+
+private const val GENERIC_GAUGE_FAILURE = "Your gauge could not finish this request"
+
+internal fun globalFailureNotice(reason: String?): StatusUi? = reason?.let { friendlyFailure(it) }?.takeUnless { it.title == GENERIC_GAUGE_FAILURE }
 
 fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
@@ -342,7 +352,7 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
             )
 
         else -> StatusUi(
-            if (update) "The update could not finish" else "Your gauge could not finish this request",
+            if (update) "The update could not finish" else GENERIC_GAUGE_FAILURE,
             "Keep your gauge powered and nearby, then check it again.",
             StatusTone.Error
         )
@@ -351,9 +361,9 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
 
 fun updateRecoveryUi(recovery: UpdateRecoveryResult): StatusUi = when (recovery.state) {
     UpdateRecoveryState.CHECK_REQUIRED -> StatusUi(
-        "Update outcome is unknown",
-        "Reconnect the same gauge and check the installed update before retrying.",
-        StatusTone.Error
+        "Checking installed update",
+        "eGauge will check automatically when your gauge is reachable.",
+        StatusTone.Loading
     )
 
     UpdateRecoveryState.INSTALLED -> StatusUi(
@@ -370,8 +380,8 @@ fun updateRecoveryUi(recovery: UpdateRecoveryResult): StatusUi = when (recovery.
 
     UpdateRecoveryState.WAITING_FOR_CONFIRMATION -> StatusUi(
         "Your gauge is still checking the update",
-        "Keep it powered and check again before retrying.",
-        StatusTone.Stale
+        "eGauge will keep checking while your gauge restarts.",
+        StatusTone.Loading
     )
 
     UpdateRecoveryState.IDENTITY_CHECKED -> StatusUi(

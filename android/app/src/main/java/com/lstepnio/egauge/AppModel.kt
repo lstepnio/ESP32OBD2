@@ -1074,6 +1074,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val finished = android.os.SystemClock.elapsedRealtime()
         settingsPoll.completed(finished, healthy)
+        if (healthy) {
+            settingsCheckFailed = false
+            if (operation.kind == OperationKind.DISPLAY_SETTINGS && operation.stage == OperationStage.FAILED) {
+                operation = OperationState.Idle
+            }
+        }
         return settingsPoll.pause(finished)
     }
 
@@ -2580,6 +2586,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         updatePackageMessage = "Sending signed image to gauge • $percent%"
     }
     fun updateStageChanged(stage: FirmwareUpdateStage) {
+        if (stage == FirmwareUpdateStage.PREPARING_FLASH) updateMayHaveChangedGauge = true
         operation = when (stage) {
             FirmwareUpdateStage.PREPARING -> operation.copy(
                 stage = OperationStage.PREPARING,
@@ -2734,6 +2741,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updatePreparation = "held"
         }
         updatePackageMessage = message
+        if (pendingUpdateRecovery != null) foregroundConnection.retrySoon()
     }
     fun installSelectedUpdate() = installSelectedUpdate(bluetoothRecovery = false)
 
@@ -2798,14 +2806,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     val result = if (usingWifi) {
-                        client.installUpdateWifi(
-                            bleClient.selectedGauge(),
-                            bundle,
-                            wifiVersion == "experimental-softap-aead-v2",
-                            reportProgress,
-                            reportStage,
-                            debugOtaPauseBeforeActivationMs
-                        )
+                        val device = bleClient.selectedGauge()
+                        retryWifiUpdateStartup(onRetry = {
+                            operation = operation.copy(title = "Reconnecting for update")
+                        }) { stage ->
+                            client.installUpdateWifi(
+                                device,
+                                bundle,
+                                wifiVersion == "experimental-softap-aead-v2",
+                                reportProgress,
+                                { next ->
+                                    stage(next)
+                                    reportStage(next)
+                                },
+                                debugOtaPauseBeforeActivationMs
+                            )
+                        }
                     } else {
                         client.installUpdate(
                             bleClient.selectedGauge(),
@@ -2917,13 +2933,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun rotateGauge(rotation: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Rotating display") { id ->
+    fun rotateGauge(rotation: Int) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Rotating display") { id ->
         require(capabilities?.displayRotationWrite == true) {
             "Gauge does not offer display rotation control"
         }
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.SENDING,
             "Rotating display",
             "Waiting for saved-state confirmation"
@@ -2931,7 +2947,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         snapshotRead(bleClient.rotateNearby(rotation))
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Display rotation saved",
             "The gauge confirmed ${rotation * 90}°",
@@ -2939,7 +2955,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun saveOrientation(automatic: Boolean, manualAngle: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display orientation") { id ->
+    fun saveOrientation(automatic: Boolean, manualAngle: Int) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Saving display orientation") { id ->
         require(capabilities?.automaticOrientationVersion == 1) { "Gauge does not offer automatic orientation" }
         val client = GaugeConfigTransferClient(getApplication())
         orientationSettings = client.saveOrientationSettings(bleClient.selectedGauge(), automatic, manualAngle)
@@ -2948,7 +2964,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Display orientation saved",
             if (automatic) "Automatic orientation is on" else "The gauge confirmed ${manualAngle * 90}°",
@@ -2956,13 +2972,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun saveConnectionIcons(enabled: Boolean) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving connection icons") { id ->
+    fun saveConnectionIcons(enabled: Boolean) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Saving connection icons") { id ->
         require(connectionIcons != null) { "Gauge does not offer connection icons" }
         connectionIcons = GaugeConfigTransferClient(getApplication()).saveConnectionIcons(bleClient.selectedGauge(), enabled)
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Connection icons saved",
             "The gauge confirmed the setting",
@@ -2970,7 +2986,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun saveSunsetBrightness(automatic: Boolean, level: Int, location: SunsetLocation?) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving night brightness") { id ->
+    fun saveSunsetBrightness(automatic: Boolean, level: Int, location: SunsetLocation?) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Saving night brightness") { id ->
         require(capabilities?.sunsetBrightnessSupported == true && (!automatic || location != null))
         sunsetBrightness = GaugeConfigTransferClient(getApplication()).saveSunsetBrightness(
             bleClient.selectedGauge(),
@@ -2981,7 +2997,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Night brightness saved",
             "The gauge confirmed the settings",
@@ -2989,13 +3005,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun saveDisplaySettings(rotation: Int, brightness: Int) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving display settings") { id ->
+    fun saveDisplaySettings(rotation: Int, brightness: Int) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Saving display settings") { id ->
         require((capabilities?.displaySettingsVersion ?: 0) >= 1) {
             "Gauge does not offer display settings"
         }
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.SENDING,
             "Saving display settings",
             "Waiting for gauge confirmation"
@@ -3013,7 +3029,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Display settings saved",
             "The gauge confirmed ${rotation * 90}° and $brightness% brightness",
@@ -3021,13 +3037,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun saveMeasurementSystem(system: MeasurementSystem) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving measurement units") { id ->
+    fun saveMeasurementSystem(system: MeasurementSystem) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Saving measurement units") { id ->
         require((capabilities?.displaySettingsVersion ?: 0) >= 2) {
             "Gauge does not offer measurement units"
         }
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.SENDING,
             "Saving measurement units",
             "Waiting for gauge confirmation"
@@ -3046,7 +3062,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Measurement units saved",
             "The gauge confirmed ${system.name.lowercase()} units",
@@ -3056,7 +3072,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun savePageCycleSeconds(seconds: Int) = savePageCycling(seconds, null)
 
-    fun savePageCycling(seconds: Int, smart: Boolean?) = launchGaugeOperation(OperationKind.CONFIGURATION, "Saving page cycle interval") { id ->
+    fun savePageCycling(seconds: Int, smart: Boolean?) = launchGaugeOperation(OperationKind.DISPLAY_SETTINGS, "Saving page cycle interval") { id ->
         val caps = capabilities
         require(caps != null && caps.displaySettingsVersion >= 3) {
             "Gauge does not offer page cycling"
@@ -3067,7 +3083,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         require(seconds in setOf(0, 5, 10, 15, 30, 60)) { "Invalid page cycle interval" }
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.SENDING,
             "Saving page cycle interval",
             "Waiting for gauge confirmation"
@@ -3088,7 +3104,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ownerAccess = OwnerAccess.AUTHENTICATED
         operation = OperationState(
             id,
-            OperationKind.CONFIGURATION,
+            OperationKind.DISPLAY_SETTINGS,
             OperationStage.ACTIVE,
             "Page cycling saved",
             if (seconds ==
@@ -3436,7 +3452,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         block: suspend (Long) -> Unit
     ) {
         if (localSaveBusy) return
-        if (kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+        if (kind in setOf(OperationKind.DISPLAY_SETTINGS, OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
             vehicleCommands.values.any { it.phase in setOf(VehicleCommandPhase.Starting, VehicleCommandPhase.Active, VehicleCommandPhase.Stopping, VehicleCommandPhase.Verifying) }
         ) {
             deviceMessage = "End vehicle actions before changing gauge setup"
@@ -3458,7 +3474,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 operationFailed(
                     "$title was interrupted",
                     outcomeUnknown =
-                        kind != OperationKind.READ
+                        kind !in setOf(OperationKind.READ, OperationKind.DISPLAY_SETTINGS)
                 )
                 throw error
             } catch (error: Exception) {
@@ -3480,6 +3496,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             detail = message,
             terminal = true
         )
+        if (operation.kind == OperationKind.DISPLAY_SETTINGS) {
+            settingsCheckFailed = true
+            settingsPoll.reset()
+            foregroundConnection.retrySoon()
+        }
         if (operation.kind == OperationKind.CONFIGURATION) {
             configurationNeedsReview = true
             configurationRecoveryRead = false

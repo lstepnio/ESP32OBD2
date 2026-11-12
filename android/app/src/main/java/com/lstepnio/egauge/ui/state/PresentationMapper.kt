@@ -241,6 +241,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     if (!busy && updateRecovery != null && updateRecovery.state != UpdateRecoveryState.INSTALLED) {
         op =
             op.copy(
+                kind = OperationKind.UPDATE,
                 status = updateRecoveryUi(updateRecovery),
                 visible = true,
                 needsCheck = true,
@@ -256,7 +257,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
 
         presentationError != null -> friendlyFailure(presentationError)
 
-        op.visible && (op.busy || op.needsCheck) -> op.status
+        op.visible && (op.busy || op.needsCheck) && op.kind != OperationKind.DISPLAY_SETTINGS && !op.update -> op.status
 
         runtimeIdentity?.usedPreviousGeneration == true -> StatusUi(
             "Earlier settings are running",
@@ -386,7 +387,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
     val updateNotice = when {
         !freshConnection || !found -> UpdateNotice.None
 
-        updateRecovery?.state !in setOf(null, UpdateRecoveryState.INSTALLED) ||
+        updateRecovery?.state in setOf(UpdateRecoveryState.PREVIOUS_FIRMWARE, UpdateRecoveryState.IDENTITY_CHECKED) ||
             (!privateLocalUpdate && updatePreparation == "held") -> UpdateNotice.NeedsCheck
 
         !privateLocalUpdate && hostedUpdate != null && updateReady -> UpdateNotice.Ready
@@ -509,7 +510,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             orientationSensorStale = orientationSettings?.sensorStatus == 2,
             orientationProtocolSupported = capabilities?.automaticOrientationVersion == 1,
             sunsetBrightness = sunsetBrightness,
-            connectionIcons = connectionIcons?.enabled
+            connectionIcons = connectionIcons?.enabled,
+            checkingAfterSave = operation.kind == OperationKind.DISPLAY_SETTINGS && operation.stage == OperationStage.FAILED
         ),
         ExpertUiState(
             found && !busy, found && capabilities?.hardwareCapacityVersion == 1 && !busy,
@@ -668,8 +670,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 StatusTone.Error
             )
         } else {
-            presentationError?.let { friendlyFailure(it) }
-                ?: null
+            globalFailureNotice(presentationError?.takeUnless { it == updatePackageMessage })
         },
         connection
     )

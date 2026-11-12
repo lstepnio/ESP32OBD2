@@ -1,7 +1,13 @@
 package com.lstepnio.egauge
 
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 
 internal interface WifiUpdateBootstrapSession {
     suspend fun identity(): GaugeConfigTransferClient.BootIdentity
@@ -66,4 +72,31 @@ internal suspend fun bootstrapWifiUpdate(
         }
         throw error
     }
+}
+
+/** A disconnected startup can be retried after the first attempt closes its transport. */
+internal suspend fun <T> retryWifiUpdateStartup(
+    onRetry: () -> Unit,
+    attempt: suspend ((FirmwareUpdateStage) -> Unit) -> T
+): T {
+    var beforeFlash = true
+    try {
+        return attempt { stage ->
+            if (stage != FirmwareUpdateStage.PREPARING && stage != FirmwareUpdateStage.CONNECTING_WIFI) {
+                beforeFlash = false
+            }
+        }
+    } catch (error: Exception) {
+        currentCoroutineContext().ensureActive()
+        val transient = when (error) {
+            is TimeoutCancellationException -> true
+            is CancellationException, is GaugeCommandRejectedException -> false
+            is IOException, is GaugeLinkException -> true
+            else -> false
+        }
+        if (!beforeFlash || !transient) throw error
+    }
+    onRetry()
+    delay(1_000)
+    return attempt {}
 }

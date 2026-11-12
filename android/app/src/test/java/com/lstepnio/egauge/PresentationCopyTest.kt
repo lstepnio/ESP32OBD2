@@ -140,6 +140,19 @@ class PresentationCopyTest {
         )
     }
 
+    @Test fun routineRecoveryDoesNotRaiseAGlobalWarning() {
+        assertNull(globalFailureNotice("Unexpected read response"))
+        assertNotNull(globalFailureNotice("Could not save appearance settings. Try again."))
+        val failed = OperationUi(visible = true, needsCheck = true)
+        assertFalse(showTransferBanner(failed.copy(kind = OperationKind.DISPLAY_SETTINGS)))
+        assertFalse(showTransferBanner(failed.copy(kind = OperationKind.UPDATE)))
+        assertTrue(showTransferBanner(failed.copy(kind = OperationKind.CONFIGURATION)))
+        assertEquals(
+            StatusTone.Loading,
+            updateRecoveryUi(UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED, "raw", false)).tone
+        )
+    }
+
     @Test fun pendingAndRolledBackUpdatesNeverClaimSuccess() {
         UpdateRecoveryState.entries.filter { it != UpdateRecoveryState.INSTALLED }.forEach {
             assertNotEquals(

@@ -1,5 +1,6 @@
 package com.lstepnio.egauge
 
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlinx.coroutines.*
@@ -7,6 +8,31 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class WifiUpdateBootstrapTest {
+    @Test fun transientStartupFailureRetriesOnceBeforeFlash() = runBlocking {
+        var attempts = 0
+        var retries = 0
+        val result = retryWifiUpdateStartup(onRetry = { retries++ }) { stage ->
+            attempts++
+            stage(FirmwareUpdateStage.CONNECTING_WIFI)
+            if (attempts == 1) throw IOException("Connection lost")
+            "installed"
+        }
+        assertEquals("installed", result)
+        assertEquals(2, attempts)
+        assertEquals(1, retries)
+    }
+
+    @Test fun flashPreparationFailureDoesNotReplayTheUpdate() = runBlocking {
+        val failure = IOException("Connection lost after preparation started")
+        val result = runCatching {
+            retryWifiUpdateStartup(onRetry = { fail("Must verify before retrying") }) { stage ->
+                stage(FirmwareUpdateStage.PREPARING_FLASH)
+                throw failure
+            }
+        }
+        assertSame(failure, result.exceptionOrNull())
+    }
+
     private val privateTag = 0xf2434755L
 
     private class Owner : WifiUpdateBootstrapOwner {
