@@ -223,13 +223,15 @@ for commercial publication or replace the cutouts with original photographs.
 ### Checkout and fulfillment
 
 `storefront.json` owns the USD item prices. The public build rejects any non-null
-checkout setting. Gauge requests and the LCD flashing service open the inquiry
-form. The flashing service is for a customer-owned LCD board and covers help
-installing the free firmware through the browser USB tool. The self-service
-tool stays free. Both gauge
-prices exclude the adapter. The Vgate add-on uses the same price for either gauge. The LCD supports one
-connected adapter. Customers can also reuse a compatible BLE adapter. Stripe
-Payment Links are created separately in the sandbox and kept out of the webroot.
+checkout setting. Gauge requests and the LCD browser flashing offer open the
+inquiry form. The browser flashing offer includes limited initial setup support
+for a customer-owned board. Firmware downloads and manual flashing are free.
+The USB recovery tool remains available at `/recovery/`.
+
+Both gauge prices exclude the adapter. The Vgate add-on uses the same price for
+either gauge. The LCD supports one connected adapter. Customers can also reuse a
+compatible BLE adapter. Stripe Payment Links are created separately in the
+sandbox and kept out of the webroot.
 
 1. Open the Stripe sandbox. Configure its tax origin and an active **test** tax
    registration. Use an authorized test key stored in a private file or entered

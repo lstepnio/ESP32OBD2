@@ -50,7 +50,7 @@
       <div class="section-heading">
         <p class="eyebrow">THE eGAUGE SHOP</p>
         <h2 id="hardware-title">Pick your gauge.</h2>
-        <p>Get the full eGauge experience on the larger AMOLED display with licensed firmware preinstalled. The LCD development board is the budget-friendly option with free firmware.</p>
+        <p>Build your own gauge on an affordable LCD board or get the larger OLED gauge in an enclosure with firmware preinstalled.</p>
       </div>
       <section class="panel-compare" id="panel-compare" aria-labelledby="panel-compare-title">
         <header class="panel-compare-head">
@@ -105,19 +105,20 @@
             </figure>
           </div>
           <div class="store-copy">
-            <p class="eyebrow">FREE FIRMWARE / DIY</p>
-            <h3>S3-LCD-1.28 v1</h3>
+            <p class="eyebrow">BARE DEVELOPMENT BOARD · S3-LCD-1.28 v1</p>
+            <h3>LCD 1.28″ DIY</h3>
             <div class="store-price">
               <p><strong>{{LCD_PRICE}}</strong> preflashed board</p>
-              <p><strong>{{LCD_FLASH_PRICE}}</strong> assisted browser flashing for a compatible board you own</p>
+              <p><strong>{{LCD_FLASH_PRICE}}</strong> browser-based flashing with limited setup support</p>
             </div>
-            <p>The firmware is free and includes customizable readings, alerts and timed page cycling for one OBD-II adapter. The flashing service helps you install it from a supported desktop browser over USB.</p>
+            <p>Get the board wherever you like. Download the firmware and flash it manually for free, or use our browser flasher over USB with limited help getting set up. The source code is available on GitHub.</p>
             <div class="store-actions">
               {{LCD_ORDER}}
               <div class="store-links">
-                <a href="#custom-form" data-order-request="the S3-LCD-1.28 v1 browser flashing service for my board">Request flashing help ↗</a>
-                <a href="/recovery/">Flash it yourself for free ↗</a>
                 <a href="https://www.waveshare.com/esp32-s3-touch-lcd-1.28.htm">Source your own board ↗</a>
+                <a href="https://github.com/lstepnio/ESP32OBD2/releases">Download free firmware ↗</a>
+                <a href="#custom-form" data-order-request="the browser flasher with limited setup support for my S3-LCD-1.28 v1">Request browser flashing ↗</a>
+                <a href="https://github.com/lstepnio/ESP32OBD2/tree/main/firmware/gauge">Browse the source on GitHub ↗</a>
               </div>
             </div>
           </div>
@@ -140,17 +141,18 @@
             </figure>
           </div>
           <div class="store-copy">
-            <p class="eyebrow">AMOLED / LICENSED FIRMWARE</p>
-            <h3>S3-OLED-1.75 v1</h3>
+            <p class="eyebrow">ENCLOSED GAUGE · S3-OLED-1.75 v1</p>
+            <h3>OLED 1.75″</h3>
             <div class="store-price">
-              <p><strong>{{OLED_PRICE}}</strong> gauge and firmware license</p>
+              <p><strong>{{OLED_PRICE}}</strong> plus tax and shipping</p>
               <p>Estimated lead time is about 30 days.</p>
             </div>
-            <p>A larger, high-contrast display with crisp type and an interface tuned for the 466 × 466 panel. The license covers the preinstalled firmware major version.</p>
+            <p>Includes the enclosed gauge, preinstalled firmware, and a license for the firmware major version it ships with.</p>
             <ul class="store-highlights">
-              <li>Smart Cycle brings relevant readings forward.</li>
-              <li>Optional second adapter for a separate transmission port.</li>
-              <li>Side button switches between Day and Night brightness.</li>
+              <li><strong>466 × 466 AMOLED touchscreen.</strong> Layouts designed for the larger round screen give readings more room. Larger type and high contrast make them easier to read at a glance in bright and low light.</li>
+              <li><strong>Smart Cycle.</strong> Brings relevant readings forward as driving conditions change.</li>
+              <li><strong>Automatic Day and Night brightness.</strong> Set your daytime and nighttime brightness and let the gauge switch with your daylight schedule.</li>
+              <li><strong>Engine and transmission on one dashboard.</strong> Most vehicles need one OBD-II adapter. If your Hemi-swapped Jeep with a ZF 8HP70 has separate engine and transmission diagnostic ports, add a second adapter to see both sets of readings together.</li>
             </ul>
             <div class="store-actions">
               {{OLED_ORDER}}
@@ -180,16 +182,17 @@
           <thead><tr><th scope="col">Feature</th><th scope="col">LCD</th><th scope="col">OLED</th></tr></thead>
           <tbody>
             <tr><th scope="row">Touchscreen</th><td>1.28″ LCD<br>240 × 240</td><td>1.75″ AMOLED<br>466 × 466</td></tr>
-            <tr><th scope="row">Firmware</th><td>Free download</td><td>Licensed and preinstalled</td></tr>
-            <tr><th scope="row">Dashboard pages</th><td>5 planned</td><td>12 planned</td></tr>
+            <tr><th scope="row">Hardware</th><td>Bare development board</td><td>Enclosed gauge</td></tr>
+            <tr><th scope="row">Fit dimensions</th><td>38.51 mm lens diameter<br>41.0 mm overall height to USB-C port</td><td>51.0 mm enclosure diameter<br>12.1 mm overall depth</td></tr>
+            <tr><th scope="row">Mechanical drawings</th><td><a href="https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.28/ESP32-S3-Touch-LCD-1.28.zip">LCD drawing and CAD (ZIP) ↗</a></td><td><a href="https://files.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-1.75/ESP32-S3-Touch-AMOLED-1.75-B-3D.zip">OLED case drawing and CAD (ZIP) ↗</a></td></tr>
+            <tr><th scope="row">Firmware</th><td>Free download, public source</td><td>Licensed and preinstalled</td></tr>
             <tr><th scope="row">Readings and alerts</th><td colspan="2">Shared catalog, layouts and threshold alerts</td></tr>
             <tr><th scope="row">Supported BLE adapters</th><td>One</td><td>One, with an optional second adapter for a separate transmission port</td></tr>
             <tr><th scope="row">Page cycling</th><td>Timed</td><td>Timed and Smart Cycle</td></tr>
-            <tr><th scope="row">Shortcuts</th><td>Page jumps</td><td><a href="#offroad-actions">Vehicle controls in development</a></td></tr>
           </tbody>
         </table>
       </div>
-      <p class="section-note">Readings depend on your vehicle and adapter. OLED features are in private development. <a href="https://www.amazon.com/dp/B06XGB4873">View the Vgate adapter on Amazon ↗</a></p>
+      <p class="section-note">Allow extra room for the USB-C plug and cable bend. Readings depend on your vehicle and adapter. <a href="https://www.amazon.com/dp/B06XGB4873">View the Vgate adapter on Amazon ↗</a></p>
       <p class="store-credit">Device views show examples rendered for each board. Board imagery is adapted from Waveshare product photos.</p>
     </section>
 
