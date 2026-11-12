@@ -332,6 +332,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         capabilities?.experimentalNumericConfig == true
     val car = carState(nowElapsedMs, busy, details)
     val privateLocalUpdate = privateUpdateTarget != null
+    val packageFailure = updatePackageFailureUi(operation, updatePackageMessage, presentationError)
     val updateStatus = when {
         updateInProgress || updatePreparation == "downloading" -> op.status
 
@@ -339,11 +340,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             updateRecovery
         )
 
-        privateLocalUpdate && (
-            presentationError == updatePackageMessage ||
-                (operation.stage == OperationStage.FAILED && operation.detail == updatePackageMessage)
-            ) ->
-            friendlyFailure(updatePackageMessage, true)
+        packageFailure != null -> packageFailure
 
         privateLocalUpdate && !updateReady -> StatusUi(
             "Private gauge updates",

@@ -359,6 +359,12 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     }
 }
 
+internal fun updatePackageFailureUi(operation: OperationState, message: String, presentationError: String?): StatusUi? {
+    val interrupted = operation.kind == OperationKind.UPDATE &&
+        operation.stage in setOf(OperationStage.FAILED, OperationStage.OUTCOME_UNKNOWN)
+    return if (interrupted || presentationError == message) friendlyFailure(message, update = true) else null
+}
+
 fun updateRecoveryUi(recovery: UpdateRecoveryResult): StatusUi = when (recovery.state) {
     UpdateRecoveryState.CHECK_REQUIRED -> StatusUi(
         "Checking installed update",

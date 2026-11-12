@@ -153,6 +153,16 @@ class PresentationCopyTest {
         )
     }
 
+    @Test fun failedLocalUpdateHasInlineFeedbackWithoutAGlobalBanner() {
+        val message = "The gauge Wi-Fi connection dropped"
+        for (stage in listOf(OperationStage.FAILED, OperationStage.OUTCOME_UNKNOWN)) {
+            val operation = OperationState(1, OperationKind.UPDATE, stage, "Installing firmware", terminal = true)
+            assertEquals("Could not connect for the update", updatePackageFailureUi(operation, message, null)?.title)
+            assertFalse(showTransferBanner(operationUi(operation)))
+        }
+        assertNull(updatePackageFailureUi(OperationState.Idle, message, null))
+    }
+
     @Test fun pendingAndRolledBackUpdatesNeverClaimSuccess() {
         UpdateRecoveryState.entries.filter { it != UpdateRecoveryState.INSTALLED }.forEach {
             assertNotEquals(
