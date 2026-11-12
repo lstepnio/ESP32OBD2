@@ -2,6 +2,9 @@
 #include "vehicle_commands.h"
 #include "jeep_idle_parked_test.h"
 #include "vehicle_idle_coolant.h"
+#ifndef EGAUGE_EXPERIMENTAL_QUIET_ACTIONS
+#define EGAUGE_EXPERIMENTAL_QUIET_ACTIONS 0
+#endif
 // ---------------------------------------------------------------------------------------------------------------------
 // Includes
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1844,9 +1847,13 @@ static void ui_task(lv_timer_t *timer)
                 if (!ui->action_arrows[i])
                 {
                     ui->action_arrows[i] = lv_line_create(ui->widgets.gauge_content);
-                    lv_line_set_points(ui->action_arrows[i], arrow, 5);
+                    static lv_point_precise_t stroke[2];
+                    stroke[0] = (lv_point_precise_t){px(0), px(0)};
+                    stroke[1] = (lv_point_precise_t){px(10), px(0)};
+                    lv_line_set_points(ui->action_arrows[i], EGAUGE_EXPERIMENTAL_QUIET_ACTIONS ? stroke : arrow,
+                                       EGAUGE_EXPERIMENTAL_QUIET_ACTIONS ? 2 : 5);
                     lv_obj_set_style_line_width(ui->action_arrows[i], px(2), 0);
-                    lv_obj_set_style_line_color(ui->action_arrows[i], lv_color_hex(color_accent), 0);
+                    lv_obj_set_style_line_color(ui->action_arrows[i], lv_color_hex(EGAUGE_EXPERIMENTAL_QUIET_ACTIONS ? 0x9fc8dc : color_accent), 0);
                 }
                 lv_obj_set_pos(ui->action_arrows[i], gx(125 - (int)progress * 10 + (int)i * 20), gy(205));
                 show(ui->action_arrows[i], visible && i < progress);
@@ -2970,6 +2977,25 @@ static void refresh_vehicle_menu(ui_t *ui)
         note = button = "";
         enabled       = false;
     }
+    bool thermal = EGAUGE_EXPERIMENTAL_QUIET_ACTIONS && id && id < 3 && !connecting &&
+                   (!strcmp(value, "Coolant high") || !strcmp(note, "Coolant high"));
+    if (thermal)
+    {
+        value = "Coolant too hot";
+        note = button[0] ? "Stopping" : "";
+        if (!enabled)
+            button = "";
+    }
+    else if (EGAUGE_EXPERIMENTAL_QUIET_ACTIONS && id && id < 3 && !connecting)
+    {
+        if (phase == VEHICLE_UNKNOWN)
+            value = "Idle unconfirmed";
+        if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
+        {
+            value = "Checking idle";
+            button = "";
+        }
+    }
     /* Existing fonts and one arc tree, no per-frame allocations or animation task. */
     command_text(ui, ui->command_title, title, 59, 184, font_unit);
     command_text(ui, ui->command_value, value, 104, 186,
@@ -2979,7 +3005,8 @@ static void refresh_vehicle_menu(ui_t *ui)
     command_text(ui, ui->command_note, note, 136, 200, font_subtitle);
     bool coolant_warning = id < 3 && (state & (VEHICLE_UI_COOLANT_HIGH << 8));
     lv_obj_set_style_text_color(ui->command_value,
-                                lv_color_hex(connecting        ? color_text_secondary
+                                lv_color_hex(thermal           ? 0xff7064
+                                             : connecting        ? color_text_secondary
                                              : coolant_warning ? color_warning
                                                                : color_text_primary),
                                 0);
@@ -2995,6 +3022,15 @@ static void refresh_vehicle_menu(ui_t *ui)
     lv_obj_set_style_border_color(ui->command_button, lv_color_hex(color_text_secondary), 0);
     lv_obj_set_style_text_color(ui->command_button_text,
                                 lv_color_hex(quiet_button ? color_text_primary : color_background), 0);
+    if (EGAUGE_EXPERIMENTAL_QUIET_ACTIONS)
+    {
+        bool stop = !strcmp(button, "Stop");
+        lv_obj_set_style_bg_opa(ui->command_button, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(ui->command_button, lv_color_hex(stop ? 0x271a19 : 0x070d11), 0);
+        lv_obj_set_style_border_width(ui->command_button, px(1), 0);
+        lv_obj_set_style_border_color(ui->command_button, lv_color_hex(stop ? 0x8a514c : 0x4c7185), 0);
+        lv_obj_set_style_text_color(ui->command_button_text, lv_color_hex(stop ? 0xffd1cb : 0xdaebf4), 0);
+    }
     lv_obj_center(ui->command_button_text);
     show(ui->command_button, button[0]);
     if (enabled)
