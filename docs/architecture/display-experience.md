@@ -144,7 +144,9 @@ On the OLED adapter, a short release of the right-side BOOT key with USB-C
 at the bottom switches Day/Night. The override stays active through the next
 automatic phase evaluation and expires when the solar phase changes.
 Holding the key at startup, long presses and bouncing contacts do not
-toggle brightness. The reference LCD has no bound button shortcut. The
+toggle brightness. Short presses are debounced on the normal display loop.
+During firmware maintenance the loop retains the net toggle and applies it
+after maintenance ends. The reference LCD has no bound button shortcut. The
 display owner applies the hardware level, and scheduled state does not write
 flash between Day/Night changes. Settings migrations preserve the legacy
 brightness, rotation and cycling records.
