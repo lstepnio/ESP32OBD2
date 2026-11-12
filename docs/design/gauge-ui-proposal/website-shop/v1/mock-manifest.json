@@ -1,0 +1,56 @@
+{
+  "reviewId": "egauge-website-oled-first-2026-11-11",
+  "reviewRound": 1,
+  "reviewAssets": [
+    "index.html",
+    "mock-data.js",
+    "preview-manifest.json"
+  ],
+  "screens": [
+    {
+      "id": "desktop",
+      "title": "OLED-first landing page",
+      "category": "Website",
+      "note": "The approved USB-connected product image leads. Explore OLED is the main action; Start free with LCD jumps directly to the DIY option.",
+      "revised": true,
+      "isNew": true,
+      "changeSummary": "Approve this part of the proposed website, or save specific changes below."
+    },
+    {
+      "id": "oled",
+      "title": "OLED offer",
+      "category": "Shop",
+      "note": "One concise offer: $199 plus tax and shipping, about 30 days, software included, adapter separate. Four benefits and one request button.",
+      "revised": true,
+      "isNew": true,
+      "changeSummary": "Approve this part of the proposed website, or save specific changes below."
+    },
+    {
+      "id": "lcd",
+      "title": "Free LCD path",
+      "category": "Shop",
+      "note": "Bring your own board from Waveshare or Amazon. Free manual flashing and public source are prominent. Paid setup help stays inside an expandable section.",
+      "revised": true,
+      "isNew": true,
+      "changeSummary": "Approve this part of the proposed website, or save specific changes below."
+    },
+    {
+      "id": "mobile",
+      "title": "Mobile landing page",
+      "category": "Website",
+      "note": "The same hierarchy at 390 px wide. The product stays fully visible, with a clear OLED action and a direct free-LCD link.",
+      "revised": true,
+      "isNew": true,
+      "changeSummary": "Approve this part of the proposed website, or save specific changes below."
+    },
+    {
+      "id": "specs",
+      "title": "Engineering on demand",
+      "category": "Details",
+      "note": "Side-by-side screens, exact dimensions, CAD links and feature comparison remain one click away. Most visitors can skip them.",
+      "revised": true,
+      "isNew": true,
+      "changeSummary": "Approve this part of the proposed website, or save specific changes below."
+    }
+  ]
+}

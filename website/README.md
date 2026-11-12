@@ -110,6 +110,26 @@ data to the real API; use browser request interception for success/error checks.
 
 ## Screens and provenance
 
+### Website design review
+
+The OLED-first shop proposal is in
+[`website-shop`](../docs/design/gauge-ui-proposal/website-shop/index.html).
+Review 2 exposes paid LCD setup and distinguishes outer-face from display-opening
+dimensions. Review 1 and its submitted feedback are preserved; unchanged images
+retain their previous decisions. Serve the verified draft on port 8798 and launch
+the existing feedback server:
+
+```sh
+python3 docs/design/gauge-ui-proposal/review_server.py --review website-shop --port 8799 --storage /path/to/persistent/website-shop-v2.json
+```
+
+Open `/docs/design/gauge-ui-proposal/website-shop/index.html` on port 8799.
+The server freezes the review images, shares saved feedback across browsers and
+rejects conflicting revisions. Keep feedback outside disposable worktrees. A new
+round needs a separate storage file; retain byte-identical approved sections via
+the existing `seed_from` path. `preview-manifest.json` identifies the draft reviewed.
+Approval of a section is design feedback, not a live publication receipt.
+
 App images come from the existing Compose capture procedure in
 [quality guidance](../docs/development/quality.md). Gauge images use the production
 LVGL host renderer and [gallery exporter](../tools/render_gauge_gallery.py).
@@ -203,6 +223,27 @@ status here.
 
 ## Public offer
 
+The shop leads with the enclosed OLED. The hero's secondary link goes directly to
+the free LCD DIY section, with vendor sourcing, free manual flashing and source
+access. Keep the free offer scoped to LCD firmware; hardware, assisted browser
+flashing and licensed OLED software are distinct. Do not imply all repository
+material has a project-wide open-source license before one is selected.
+
+Product cards keep price, tax/shipping, OLED lead time and adapter exclusion close
+to the request controls. Optional paid LCD setup has two visible price links below
+the free path: a preflashed board or browser flashing with limited setup support.
+Comparison and exact dimensions/CAD are visible by default in a collapsible section.
+Distinguish outer
+face/case diameter from the manufacturer's viewing opening; neither is a mounting
+cutout specification. Direct links to engineering details open the disclosure.
+The optional adapter has one price. Live checkout remains disabled.
+
+The selected USB-connected hero is a restrained AI-assisted adaptation of the
+actual enclosed Waveshare board. [Hero provenance](hardware/hero-provenance.json)
+records the reference, full prompt and limits. It is product artwork, not a new
+production screen capture or hardware qualification. The interactive gallery
+continues to use the existing production-rendered screen assets.
+
 The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
 free LCD firmware and licensed OLED bundle. The shop comparison distinguishes
 installed capabilities, private evaluation, and the proposed 5/12-page limits.
@@ -219,6 +260,11 @@ owns the differences between free LCD and licensed OLED builds. Keep the private
 sources, firmware, and raw captures outside this website.
 The front LCD bezel and OLED tilt are browser illustrations. Confirm photo reuse
 for commercial publication or replace the cutouts with original photographs.
+The LCD card pairs its display with the manufacturer's
+[actual rear-board photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-3.jpg),
+presented with a slight CSS tilt to make its bare construction clear. No invented
+enclosure or display is added to that rear view. The final owner review requested
+this rear view and the comparison open by default; review 2 remains historical.
 
 ### Checkout and fulfillment
 

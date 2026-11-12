@@ -143,6 +143,68 @@
 .store-comparison a, .offroad-summary a { text-decoration: underline; text-underline-offset: 3px; }
 .store-comparison + .section-note { margin-top: 16px; font-size: 14px; }
 
+/* Product choice comes before optional engineering detail. */
+.hero { grid-template-columns: .9fr 1.2fr; padding-block: 40px 64px; gap: 40px; }
+.hero h1 { font-size: clamp(44px, 5.6vw, 78px); letter-spacing: -.055em; }
+.hero-photo { margin: 0; display: block; min-height: 0; background: #d8d4cb; }
+.hero-photo::before { content: none; }
+.hero-photo img { width: 100%; height: auto; display: block; }
+.hero-photo figcaption { padding: 15px 20px; font-size: 12px; color: #363b33; background: #e8e6de; }
+.hero-free-link, .text-link, .diy-steps a { text-decoration: underline; text-underline-offset: 4px; }
+.hero-free-link { font-size: 14px; padding-block: 14px; }
+.store-grid { grid-template-columns: 1fr; gap: 36px; }
+.store-card { display: grid; grid-template-columns: .85fr 1.15fr; }
+.store-card-featured .store-art { grid-template-columns: 1fr; align-content: center; }
+.store-card-featured .store-art figure:first-child .store-device { width: min(100%, 390px); }
+.store-card-featured .store-art figure + figure { display: none; }
+.store-art { align-content: center; }
+.store-art figcaption { display: none; }
+.store-copy .eyebrow { font-size: 10px; }
+.store-copy h3 { font-size: clamp(28px, 3.5vw, 43px); }
+.store-card-featured .store-highlights { list-style: none; padding: 0; }
+.store-highlights li + li { margin-top: 12px; }
+.lcd-diy-card { background: #eef0e6; }
+.store-device-lcd-back { display: grid; align-items: center; filter: none; transform: perspective(500px) rotateX(12deg) rotateY(-18deg) rotateZ(-8deg); }
+.lcd-diy-card .store-art figure:last-child { mix-blend-mode: multiply; }
+.store-device-lcd-back .store-device-body { height: 100%; object-fit: cover; }
+.diy-steps { padding-left: 21px; margin: 0 0 24px; color: var(--muted); font-size: 15px; line-height: 1.7; }
+.diy-steps li + li { margin-top: 12px; }
+.diy-steps strong { color: var(--ink); }
+.product-details { margin-top: 24px; border-top: 1px solid var(--line); border-bottom: 0; }
+.product-details p { margin-right: 0; }
+.product-details .store-links { padding-bottom: 12px; }
+.lcd-setup-options h4 { margin: 20px 0 10px; font-size: 17px; font-weight: 600; }
+.lcd-setup-options .store-links { gap: 8px 24px; }
+.lcd-setup-options .store-links strong { white-space: nowrap; }
+.lcd-setup-options p { margin: 0; font-size: 12px; }
+.engineering-details { margin-top: 24px; border-top: 1px solid var(--line); }
+.engineering-details > summary { font-weight: 600; font-size: 17px; }
+.engineering-details .panel-compare { margin-top: 4px; }
+.engineering-details .panel-scale-note { margin: 10px 0 20px; }
+.engineering-details .store-credit { margin-bottom: 24px; }
+.offroad-section { padding-block: 12px; }
+.offroad-section details { border-color: #465042; }
+.offroad-section summary { font-size: 18px; }
+.offroad-section .offroad-summary { padding-block: 24px; }
+[id] { scroll-margin-top: 24px; }
+@media (max-width: 1000px) {
+  .hero { gap: 25px; }
+  .store-card { grid-template-columns: .7fr 1fr; }
+  .header nav { gap: 14px; }
+}
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; padding-block: 12px 30px; }
+  .hero-photo { min-height: 0; }
+  .hero-photo figcaption { padding: 12px; font-size: 11px; }
+  .store-card { grid-template-columns: 1fr; }
+  .store-card-featured .store-art figure:first-child .store-device { width: min(70vw, 270px); }
+  .lcd-diy-card .store-art { padding-block: 8px; }
+  .lcd-diy-card .store-device { width: min(37vw, 180px); }
+  .store-copy { padding: 24px; }
+  .engineering-details > summary { font-size: 16px; }
+  .hero-free-link { padding-block: 16px; }
+}
+
 .preview-stage { min-height: 380px; }
 .preview-copy fieldset { margin-bottom: 0; }
 

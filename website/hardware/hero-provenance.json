@@ -1,0 +1,12 @@
+{
+  "asset": "oled-usb-hero.webp",
+  "kind": "AI-assisted product photograph",
+  "tool": "built-in image_gen",
+  "selectedByOwner": true,
+  "references": [
+    "https://www.waveshare.com/img/devkit/ESP32-S3-Touch-AMOLED-1.75/ESP32-S3-Touch-AMOLED-1.75-B-4.jpg",
+    "docs/assets/gauge/oled-dual-arc.png"
+  ],
+  "prompt": "Use case: compositing. EDIT the first supplied photograph, which is the real enclosed Waveshare ESP32-S3-Touch-AMOLED-1.75-B. Preserve the actual round enclosure geometry, exact fine matte black plastic finish, glossy rounded lip, slim case depth, camera angle, and the small hole on the near side. Do not redesign the product. Insert the second image, the actual eGauge Gear P / RPM 675 screen, precisely into the circular glass screen in the matching perspective. Keep exact words, numbers, white/gray typography and green arc; no extra indicators. Add a real black USB-C cable plugged all the way into the VISIBLE USB-C socket on the lower right side of the first photo. Connector correctly aligned with that actual socket, cable trails naturally to the bottom right and out of frame, with room for the cable and entire enclosure. Replace white background with a simple warm light-gray tabletop and soft out-of-focus neutral background. Realistic restrained commercial product photography, soft window light, gentle contact shadow underneath, no glow, no smoke, no cinematic colored lighting, no exaggerated texture, no fake machined metal. It must look like the supplied real affordable physical device photographed with an actual USB cable, not futuristic CGI. Landscape 3:2 composition suitable for a website hero, whole gauge visible, crisp device. No text outside screen, no labels, no watermark.",
+  "limits": "Marketing illustration based on the actual enclosed board and production-rendered UI. Not a physical-device photograph, dimensional drawing, vehicle reading or qualification evidence. The dramatic first concept was rejected and is not part of the site."
+}
