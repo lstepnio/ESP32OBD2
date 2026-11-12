@@ -318,11 +318,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument(
-        "--review", choices=["screens", "action-pages", "car-pages"], default="screens"
+        "--review",
+        choices=["screens", "action-pages", "car-pages", "website-shop"],
+        default="screens",
     )
+    parser.add_argument("--storage", type=Path, help="Feedback file outside disposable worktrees")
     args = parser.parse_args()
     review_dir = freeze_review(args.review) if args.review != "screens" else None
-    server = build_server(args.port, review_dir=review_dir)
+    server = build_server(args.port, storage=args.storage, review_dir=review_dir)
     subpath = args.review + "/" if review_dir else ""
     print(
         f"Local gauge review: http://127.0.0.1:{args.port}/docs/design/gauge-ui-proposal/{subpath}index.html",
