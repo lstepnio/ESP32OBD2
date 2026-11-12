@@ -164,6 +164,9 @@
 .store-card-featured .store-highlights { list-style: none; padding: 0; }
 .store-highlights li + li { margin-top: 12px; }
 .lcd-diy-card { background: #eef0e6; }
+.store-device-lcd-back { display: grid; align-items: center; filter: none; transform: perspective(500px) rotateX(12deg) rotateY(-18deg) rotateZ(-8deg); }
+.lcd-diy-card .store-art figure:last-child { mix-blend-mode: multiply; }
+.store-device-lcd-back .store-device-body { height: 100%; object-fit: cover; }
 .diy-steps { padding-left: 21px; margin: 0 0 24px; color: var(--muted); font-size: 15px; line-height: 1.7; }
 .diy-steps li + li { margin-top: 12px; }
 .diy-steps strong { color: var(--ink); }

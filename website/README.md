@@ -232,7 +232,8 @@ material has a project-wide open-source license before one is selected.
 Product cards keep price, tax/shipping, OLED lead time and adapter exclusion close
 to the request controls. Optional paid LCD setup has two visible price links below
 the free path: a preflashed board or browser flashing with limited setup support.
-Comparison and exact dimensions/CAD use native disclosures. Distinguish outer
+Comparison and exact dimensions/CAD are visible by default in a collapsible section.
+Distinguish outer
 face/case diameter from the manufacturer's viewing opening; neither is a mounting
 cutout specification. Direct links to engineering details open the disclosure.
 The optional adapter has one price. Live checkout remains disabled.
@@ -259,6 +260,11 @@ owns the differences between free LCD and licensed OLED builds. Keep the private
 sources, firmware, and raw captures outside this website.
 The front LCD bezel and OLED tilt are browser illustrations. Confirm photo reuse
 for commercial publication or replace the cutouts with original photographs.
+The LCD card pairs its display with the manufacturer's
+[actual rear-board photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-3.jpg),
+presented with a slight CSS tilt to make its bare construction clear. No invented
+enclosure or display is added to that rear view. The final owner review requested
+this rear view and the comparison open by default; review 2 remains historical.
 
 ### Checkout and fulfillment
 
