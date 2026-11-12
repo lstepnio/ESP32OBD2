@@ -248,6 +248,7 @@ neither replays automatically nor marks the vehicle dashboard for review. Generi
 request failures stay out of the global banner. Keep specific guidance with the
 affected task and preserve the underlying response for diagnostics. Explicit
 settings conflicts and rejections stay visible inline while readback runs.
+See the [merged-build Pixel test](../evidence/display-settings-validation.md#2026-11-12-pixel-bluetooth-interruption).
 
 ## One-session Wi-Fi update bootstrap
 

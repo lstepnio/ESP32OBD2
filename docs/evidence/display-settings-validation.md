@@ -27,3 +27,24 @@ Dev.28 enables `ds:1` after the above physical qualification. The repository is 
 - The package copied to the Pixel had the same SHA-256 as the verified download. The normal app accepted it and transferred it over the gauge Wi-Fi path. The app reported gauge confirmation, then a separate installed-version read returned `0.2.0-dev.28`.
 - After restarting the app to refresh BLE capabilities, Settings showed both controls. A protected read returned the user's 100% brightness and original 0-degree rotation. The normal Settings screen saved 61% brightness and 90-degree rotation and reported gauge readback for each. It then restored 100% and 0 degrees with protected readback. Direct physical display and touch observation on dev.28 is pending; the user had already observed dimming and rotation on dev.27.
 - The OTA exposed a stale-capability issue in the app: it retained the previous firmware's public capability snapshot until process restart. The follow-up app change invalidates that snapshot after gauge-confirmed installation and requests foreground rediscovery. The updated APK was installed on the Pixel and read the dev.28 gauge at 100% and 0 degrees. Automatic capability refresh after a future OTA has not yet been physically exercised.
+
+## 2026-11-12 Pixel Bluetooth interruption
+
+Hardware: Pixel 10 Pro and S3-OLED-1.75 v1. The installed debug APK matched the
+APK built from merged commit `181e692e1965a9b6ea01a12cd565e5d809b011fe`
+([PR #170](https://github.com/lstepnio/ESP32OBD2/pull/170)) by SHA-256.
+
+- Opened Settings with the gauge ready and day brightness at 100%. Started
+  disabling Pixel Bluetooth immediately before tapping **Save to gauge** for
+  the same 100% value.
+- Settings showed **Bluetooth off** and **Checking saved settings…** while
+  retaining 100%. After Bluetooth was restored, the App reconnected, returned to
+  **Gauge ready**, and cleared the inline check without a tap or manual refresh.
+- The generic **Your gauge could not finish this request** warning was absent
+  from all sampled Settings screens. The Pixel's original wake settings were
+  restored, and eGauge remained open.
+
+This bench test covers automatic Settings readback after an interrupted save.
+The unchanged value verifies recovery of the displayed setting. Changed-value
+persistence, explicit write rejection, and firmware transfer were outside this
+test.
