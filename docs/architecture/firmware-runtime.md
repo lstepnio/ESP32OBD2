@@ -290,3 +290,20 @@ no buffer is allocated per redraw. The sample array adds 240 bytes to the existi
 UI context. The [display rules](../design/round-display-ui-guidelines.md#trend-trace-rendering)
 own geometry and sampling limits. Software fallback checks are not a loaded-memory
 or physical-frame-time qualification.
+
+### Display and service recovery
+
+Phone advertising retries on the NimBLE host queue after transient startup
+failures. The delay starts at 250 ms and doubles to 4 seconds with up to
+124 ms of jitter. Stack reset cancels the scheduled attempt. Adapter workers
+do not start phone advertising.
+
+LCD touch transactions have a 20 ms bus timeout and run in a separate worker.
+Failed reads retry with delays up to 800 ms. The display task reads a snapshot
+and cancels a held gesture when a touch read fails or ages past 150 ms.
+
+Wi-Fi reports Ready after the current network's socket starts listening.
+A listener that fails to start within five seconds closes the temporary network.
+OLED trial firmware also requires a completed display frame and no panel fault.
+Failed Wi-Fi teardown retains ownership of the driver and netif. The next
+maintenance start must finish teardown before opening another network.

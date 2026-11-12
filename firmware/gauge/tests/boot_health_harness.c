@@ -25,6 +25,10 @@ static bool     ble_companion_ready(void)
 {
     return mode != 3;
 }
+static bool gauge_board_trial_ready(void)
+{
+    return mode != 4;
+}
 static bool config_trial_needs_confirmation(uint32_t revision)
 {
     (void)revision;
