@@ -133,7 +133,6 @@ static void vTaskDelay(unsigned delay) {
     }
     if (!stalled_cancel && now >= cleanup_until) pending = false;
 }
-static void ble_companion_start(void) {}
 static void ble_mgr_gatt_svc_chr_disc_completed_check(ble_mgr_ctx_t *ctx, const struct ble_gatt_error *error, void *arg) {
     (void)ctx; (void)error; (void)arg;
 }

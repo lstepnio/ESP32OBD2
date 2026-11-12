@@ -77,6 +77,7 @@ static portMUX_TYPE      status_mux = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t          status_expires_at;
 static atomic_bool       wifi_active, wifi_phone_connected;
 static atomic_uint       wifi_generation;
+static atomic_uint       network_generation;
 static atomic_uint       abandoned_ota_session;
 static struct
 {
@@ -88,6 +89,7 @@ static struct
     uint32_t session_id;
     uint8_t  key[32];
     uint32_t expires_at;
+    uint32_t listener_deadline;
     uint32_t last_frame_sequence;
     char     ssid[33];
     char     password[17];
@@ -239,6 +241,7 @@ static bool start_maintenance_network(void)
 {
     // Retire the prior client/transfer even if a subsequent startup step fails.
     atomic_store(&wifi_active, false);
+    atomic_fetch_add(&network_generation, 1);
     atomic_store(&wifi_phone_connected, false);
     atomic_fetch_add(&wifi_generation, 1);
     if (wifi_initialized)
@@ -299,8 +302,7 @@ static bool start_maintenance_network(void)
     state.ip[1]      = (address >> 8) & 0xff;
     state.ip[2]      = (address >> 16) & 0xff;
     state.ip[3]      = (address >> 24) & 0xff;
-    state.phase      = PHASE_READY;
-    state.result     = RESULT_OK;
+    state.listener_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
     publish_locked();
     xSemaphoreGive(state_lock);
     atomic_store(&wifi_active, true);
@@ -312,6 +314,7 @@ static bool start_maintenance_network(void)
 static void stop_maintenance_network(void)
 {
     atomic_store(&wifi_active, false);
+    atomic_fetch_add(&network_generation, 1);
     atomic_store(&wifi_phone_connected, false);
     atomic_fetch_add(&wifi_generation, 1);
     release_wifi_driver();
@@ -547,6 +550,7 @@ static void server_task(void *arg)
             worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
             vTaskDelay(pdMS_TO_TICKS(250));
         }
+        unsigned network = atomic_load(&network_generation);
         int server = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         if (server < 0)
         {
@@ -566,7 +570,16 @@ static void server_task(void *arg)
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
-        while (atomic_load(&wifi_active))
+        xSemaphoreTake(state_lock, portMAX_DELAY);
+        if (atomic_load(&wifi_active) && network == atomic_load(&network_generation) &&
+            state.phase == PHASE_STARTING)
+        {
+            state.phase = PHASE_READY;
+            state.result = RESULT_OK;
+            publish_locked();
+        }
+        xSemaphoreGive(state_lock);
+        while (atomic_load(&wifi_active) && network == atomic_load(&network_generation))
         {
             worker_health_progress(WORKER_WIFI_SERVER, (uint32_t)(esp_timer_get_time() / 1000));
             // SO_RCVTIMEO does not portably bound accept; select owns its deadline.
@@ -598,6 +611,16 @@ static void server_task(void *arg)
             close(client);
         }
         close(server);
+        xSemaphoreTake(state_lock, portMAX_DELAY);
+        if (atomic_load(&wifi_active) && network == atomic_load(&network_generation) &&
+            state.phase == PHASE_READY)
+        {
+            state.phase = PHASE_STARTING;
+            state.result = RESULT_PENDING;
+            state.listener_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
+            publish_locked();
+        }
+        xSemaphoreGive(state_lock);
     }
 }
 
@@ -658,11 +681,19 @@ static void worker_task(void *arg)
         uint32_t abandoned = atomic_exchange(&abandoned_ota_session, 0);
         bool     should_close;
         xSemaphoreTake(state_lock, portMAX_DELAY);
-        should_close = (state.phase == PHASE_READY && (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
+        bool listener_failed = atomic_load(&wifi_active) && state.phase == PHASE_STARTING &&
+                               (int32_t)(xTaskGetTickCount() - state.listener_deadline) >= 0;
+        should_close = listener_failed || (state.phase == PHASE_READY && (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
                        ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
         xSemaphoreGive(state_lock);
         if (should_close)
             stop_maintenance_network();
+        if (listener_failed)
+        {
+            xSemaphoreTake(state_lock, portMAX_DELAY);
+            clear_session_locked(PHASE_FAILED, RESULT_NETWORK);
+            xSemaphoreGive(state_lock);
+        }
     }
 }
 
