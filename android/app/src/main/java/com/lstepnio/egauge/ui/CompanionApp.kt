@@ -677,10 +677,8 @@ internal fun rememberTransferBannerState(operation: OperationUi): TransferBanner
             dismissedSuccessId = operation.id
         }
     }
-    val transfer = operation.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
-        (operation.busy || operation.needsCheck || successBannerMayDismiss(operation))
     return TransferBannerState(
-        operation.visible && transfer &&
+        showTransferBanner(operation) &&
             !(successBannerMayDismiss(operation) && dismissedSuccessId == operation.id)
     ) {
         if (successBannerMayDismiss(operation)) dismissedSuccessId = operation.id

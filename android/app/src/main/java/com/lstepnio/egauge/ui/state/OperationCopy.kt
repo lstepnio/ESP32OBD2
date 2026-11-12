@@ -21,6 +21,12 @@ data class OperationUi(
 fun successBannerMayDismiss(state: OperationUi): Boolean = state.visible && state.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
     !state.busy && !state.needsCheck && state.status.tone == StatusTone.Success
 
+internal fun showTransferBanner(operation: OperationUi): Boolean = operation.visible && operation.kind in setOf(OperationKind.CONFIGURATION, OperationKind.UPDATE) &&
+    (
+        operation.busy || successBannerMayDismiss(operation) ||
+            (operation.kind == OperationKind.CONFIGURATION && operation.needsCheck)
+        )
+
 /** Presentation must be stricter than a generic ACTIVE stage, which also represents successful reads. */
 fun isConfirmedSetup(
     expectedRevision: Long?,
@@ -171,11 +177,28 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
     )
 }
 
+private const val GENERIC_GAUGE_FAILURE = "Your gauge could not finish this request"
+
+internal fun globalFailureNotice(reason: String?): StatusUi? = reason?.let {
+    val failure = friendlyFailure(it)
+    if (failure.title == GENERIC_GAUGE_FAILURE) {
+        StatusUi(it, "Try the change again.", StatusTone.Error)
+    } else {
+        failure
+    }
+}
+
 fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
     val message = reason.orEmpty().lowercase()
     val updateTrust =
         update || listOf("firmware", "update", "catalog", "github").any { it in message }
     return when {
+        "confirmed measurement units on this phone" in message -> StatusUi(
+            "Phone units could not sync",
+            "The gauge kept its units. Phone previews may use the previous units while the app retries.",
+            StatusTone.Stale
+        )
+
         "appearance settings" in message -> StatusUi(
             "Your preference was not saved",
             "Try changing it again.",
@@ -342,7 +365,7 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
             )
 
         else -> StatusUi(
-            if (update) "The update could not finish" else "Your gauge could not finish this request",
+            if (update) "The update could not finish" else GENERIC_GAUGE_FAILURE,
             "Keep your gauge powered and nearby, then check it again.",
             StatusTone.Error
         )
@@ -351,9 +374,9 @@ fun friendlyFailure(reason: String?, update: Boolean = false): StatusUi {
 
 fun updateRecoveryUi(recovery: UpdateRecoveryResult): StatusUi = when (recovery.state) {
     UpdateRecoveryState.CHECK_REQUIRED -> StatusUi(
-        "Update outcome is unknown",
-        "Reconnect the same gauge and check the installed update before retrying.",
-        StatusTone.Error
+        "Checking installed update",
+        "eGauge will check automatically when your gauge is reachable.",
+        StatusTone.Loading
     )
 
     UpdateRecoveryState.INSTALLED -> StatusUi(
@@ -370,8 +393,8 @@ fun updateRecoveryUi(recovery: UpdateRecoveryResult): StatusUi = when (recovery.
 
     UpdateRecoveryState.WAITING_FOR_CONFIRMATION -> StatusUi(
         "Your gauge is still checking the update",
-        "Keep it powered and check again before retrying.",
-        StatusTone.Stale
+        "eGauge will keep checking while your gauge restarts.",
+        StatusTone.Loading
     )
 
     UpdateRecoveryState.IDENTITY_CHECKED -> StatusUi(

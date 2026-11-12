@@ -140,6 +140,33 @@ class PresentationCopyTest {
         )
     }
 
+    @Test fun routineRecoveryDoesNotRaiseAGlobalWarning() {
+        assertNull(globalFailureNotice(null))
+        assertEquals("Could not save the gauge name", globalFailureNotice("Could not save the gauge name")?.title)
+        assertNotNull(globalFailureNotice("Could not save appearance settings. Try again."))
+        assertEquals(
+            "Phone units could not sync",
+            globalFailureNotice("Could not save the confirmed measurement units on this phone")?.title
+        )
+        val failed = OperationUi(visible = true, needsCheck = true)
+        assertFalse(showTransferBanner(failed.copy(kind = OperationKind.DISPLAY_SETTINGS)))
+        assertFalse(showTransferBanner(failed.copy(kind = OperationKind.UPDATE)))
+        assertTrue(showTransferBanner(failed.copy(kind = OperationKind.CONFIGURATION)))
+        assertEquals(
+            StatusTone.Loading,
+            updateRecoveryUi(UpdateRecoveryResult(UpdateRecoveryState.CHECK_REQUIRED, "raw", false)).tone
+        )
+    }
+
+    @Test fun failedLocalUpdateHasInlineFeedbackWithoutAGlobalBanner() {
+        val message = "The gauge Wi-Fi connection dropped"
+        for (stage in listOf(OperationStage.FAILED, OperationStage.OUTCOME_UNKNOWN)) {
+            val operation = OperationState(1, OperationKind.UPDATE, stage, "Installing firmware", terminal = true)
+            assertEquals("Could not connect for the update", friendlyFailure(message, update = true).title)
+            assertFalse(showTransferBanner(operationUi(operation)))
+        }
+    }
+
     @Test fun pendingAndRolledBackUpdatesNeverClaimSuccess() {
         UpdateRecoveryState.entries.filter { it != UpdateRecoveryState.INSTALLED }.forEach {
             assertNotEquals(

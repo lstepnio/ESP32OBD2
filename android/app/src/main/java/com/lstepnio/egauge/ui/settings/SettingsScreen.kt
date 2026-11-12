@@ -58,9 +58,12 @@ fun SettingsScreen(
         ResponsivePanels(first = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionTitle("Gauge")
-                if (!state.settingsCurrent && state.brightness != null) {
+                state.displaySaveError?.let { message ->
+                    Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+                if (state.checkingAfterSave || (!state.settingsCurrent && state.brightness != null)) {
                     Text(
-                        "Last checked settings",
+                        if (state.checkingAfterSave) "Checking saved settings…" else "Last checked settings",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

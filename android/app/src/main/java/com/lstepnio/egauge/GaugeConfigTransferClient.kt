@@ -16,6 +16,8 @@ import org.json.JSONObject
 internal open class GaugeLinkException(message: String) : IllegalStateException(message)
 internal class GaugeCommandRejectedException(val status: Int) : GaugeLinkException("Protected write failed (GATT $status)")
 
+internal class DisplaySettingsConflictException(message: String) : IllegalStateException(message)
+
 enum class FirmwareUpdateStage {
     PREPARING,
     CONNECTING_WIFI,
@@ -771,11 +773,10 @@ class GaugeConfigTransferClient(private val context: Context) {
             repeat(20) {
                 val after = GaugeProtocolCodec.sunsetBrightness(readRaw())
                 if (after.revision > before.revision) {
-                    check(
-                        after.revision == before.revision + 1 && after.automatic == automatic &&
-                            after.nightBrightness == level && after.location == coordinates
+                    if (after.revision != before.revision + 1 || after.automatic != automatic ||
+                        after.nightBrightness != level || after.location != coordinates
                     ) {
-                        "Brightness changed during save. Try again."
+                        throw DisplaySettingsConflictException("Night brightness changed during save. Try again.")
                     }
                     return@withGauge after
                 }
@@ -1101,12 +1102,10 @@ class GaugeConfigTransferClient(private val context: Context) {
                     "eGaugeUpdate",
                     "First gauge Wi-Fi response took ${SystemClock.elapsedRealtime() - startedAt} ms total"
                 )
-                if (current.phase in 1..3 && current.transferId != 0L) {
-                    command(0x26, le32(current.transferId))
-                } else {
-                    check(current.phase == 0) { "Gauge is already activating an update" }
-                }
+                val staged = current.phase in 1..3 && current.transferId != 0L
+                check(current.phase == 0 || staged) { "Gauge is already activating an update" }
                 stage(FirmwareUpdateStage.PREPARING_FLASH)
+                if (staged) command(0x26, le32(current.transferId))
                 command(0x20, id + le32(bundle.image.size.toLong()) + le32(bundle.boardTag))
                 try {
                     for (part in 0..3) {
