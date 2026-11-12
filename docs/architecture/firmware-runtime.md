@@ -307,3 +307,10 @@ A listener that fails to start within five seconds closes the temporary network.
 OLED trial firmware also requires a completed display frame and no panel fault.
 Failed Wi-Fi teardown retains ownership of the driver and netif. The next
 maintenance start must finish teardown before opening another network.
+
+An independent monitor checks app and LVGL heartbeats every 500 ms on both
+boards. It logs a stall at five seconds without progress, or at ten seconds
+if the worker has never reported, and logs once when progress resumes. It
+does not take UI or transfer locks, reset workers, or interpret vehicle or
+network waits as stalls. If its 3 KiB task stack cannot be allocated, startup
+continues with a warning.

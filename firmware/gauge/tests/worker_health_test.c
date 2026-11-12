@@ -1,3 +1,4 @@
+#include "stall_monitor.h"
 #include "worker_health.h"
 #include "boot_health.h"
 #include <assert.h>
@@ -6,6 +7,17 @@
 
 int main(void)
 {
+    worker_health_t stalled = {0};
+    assert(!worker_is_stalled(stalled, 9999));
+    assert(worker_is_stalled(stalled, 10000));
+    stalled.observed = true;
+    stalled.age_ms   = 4999;
+    assert(!worker_is_stalled(stalled, 20000));
+    stalled.age_ms++;
+    assert(worker_is_stalled(stalled, 20000));
+    stalled.age_ms = 0;
+    assert(!worker_is_stalled(stalled, 20001));
+
     assert(!worker_health_snapshot(WORKER_TCM, 1000).observed);
     worker_health_progress(WORKER_ECM, UINT32_MAX - 10U);
     worker_health_progress(WORKER_ECM, 20);
