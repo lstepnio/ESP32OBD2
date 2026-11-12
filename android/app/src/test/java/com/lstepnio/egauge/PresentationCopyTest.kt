@@ -141,7 +141,8 @@ class PresentationCopyTest {
     }
 
     @Test fun routineRecoveryDoesNotRaiseAGlobalWarning() {
-        assertNull(globalFailureNotice("Unexpected read response"))
+        assertNull(globalFailureNotice(null))
+        assertEquals("Could not save the gauge name", globalFailureNotice("Could not save the gauge name")?.title)
         assertNotNull(globalFailureNotice("Could not save appearance settings. Try again."))
         assertEquals(
             "Phone units could not sync",

@@ -2043,7 +2043,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         editingPageIndex = 0
         rememberedGaugeId = id
         clearVehicleEvidence()
-        connectionError("Connecting your selected gauge")
+        resetConnectionForSelection("Connecting your selected gauge")
         currentGaugeId = null
         rediscoverGauge = true
         choosingGauge = false
@@ -2075,7 +2075,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             operation = OperationState.Idle
             return@launchGaugeOperation
         }
-        connectionError("Choose the gauge to connect")
+        resetConnectionForSelection("Choose the gauge to connect")
         gaugeCandidates = candidates
         connection = ConnectionState(ConnectionPhase.ChooseGauge)
         operation = OperationState(
@@ -2183,8 +2183,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun markScanning(value: Boolean) {
         scanning = value
     }
-    fun connectionError(message: String) {
-        presentationError = message
+    private fun resetConnectionForSelection(message: String) {
         scanning = false
         deviceMessage = message
         capabilities = null
