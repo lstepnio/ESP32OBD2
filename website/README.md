@@ -227,8 +227,11 @@ flashing and licensed OLED software are distinct. Do not imply all repository
 material has a project-wide open-source license before one is selected.
 
 Product cards keep price, tax/shipping, OLED lead time and adapter exclusion close
-to the request controls. Comparison, exact dimensions/CAD and assisted LCD setup
-use native disclosures. Direct links to engineering details open the disclosure.
+to the request controls. Optional paid LCD setup has two visible price links below
+the free path: a preflashed board or browser flashing with limited setup support.
+Comparison and exact dimensions/CAD use native disclosures. Distinguish outer
+face/case diameter from the manufacturer's viewing opening; neither is a mounting
+cutout specification. Direct links to engineering details open the disclosure.
 The optional adapter has one price. Live checkout remains disabled.
 
 The selected USB-connected hero is a restrained AI-assisted adaptation of the

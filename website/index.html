@@ -120,11 +120,14 @@
               <a class="button primary" href="https://github.com/lstepnio/ESP32OBD2/releases">Get free LCD firmware ↗</a>
               <a class="text-link" href="https://github.com/lstepnio/ESP32OBD2/tree/main/firmware/gauge">Explore the code ↗</a>
             </div>
-            <details class="product-details">
-              <summary>Prefer a head start? <span aria-hidden="true">+</span></summary>
-              <p><strong>{{LCD_PRICE}}</strong> for a preflashed bare board, plus tax and shipping. Or <strong>{{LCD_FLASH_PRICE}}</strong> for browser-based flashing with limited setup support on your own board.</p>
-              <div class="store-links">{{LCD_ORDER}}<a href="#custom-form" data-order-request="the browser flasher with limited setup support for my S3-LCD-1.28 v1">Request browser flashing ↗</a></div>
-            </details>
+            <div class="product-details lcd-setup-options">
+              <h4>Or let us handle setup.</h4>
+              <div class="store-links">
+                <a href="#custom-form" data-order-request="S3-LCD-1.28 v1 preflashed hardware">Preflashed board <strong>{{LCD_PRICE}}</strong> ↗</a>
+                <a href="#custom-form" data-order-request="the browser flasher with limited setup support for my S3-LCD-1.28 v1">Flash my board <strong>{{LCD_FLASH_PRICE}}</strong> ↗</a>
+              </div>
+              <p>Optional paid help. Board price excludes tax and shipping. Flashing includes limited setup support.</p>
+            </div>
           </div>
         </article>
       </div>
@@ -185,7 +188,10 @@
           <tbody>
             <tr><th scope="row">Touchscreen</th><td>1.28″ LCD<br>240 × 240</td><td>1.75″ AMOLED<br>466 × 466</td></tr>
             <tr><th scope="row">Hardware</th><td>Bare development board</td><td>Enclosed gauge</td></tr>
-            <tr><th scope="row">Fit dimensions</th><td>38.51 mm lens diameter<br>41.0 mm overall height to USB-C port</td><td>51.0 mm enclosure diameter<br>12.1 mm overall depth</td></tr>
+            <tr><th scope="row">Outer face / bezel</th><td>38.51 mm lens diameter</td><td>51.0 mm case diameter</td></tr>
+            <tr><th scope="row">Display opening</th><td>33.40 mm lens viewing area</td><td>43.76 mm display width</td></tr>
+            <tr><th scope="row">Overall fit</th><td>41.0 mm height including USB-C port</td><td>12.1 mm case depth</td></tr>
+            <tr><th scope="row">Dimension diagrams</th><td><a href="https://www.waveshare.com/img/devkit/ESP32-S3-Touch-LCD-1.28/ESP32-S3-Touch-LCD-1.28-details-size-1.jpg">LCD face measurements ↗</a></td><td><a href="https://www.waveshare.com/img/devkit/ESP32-S3-Touch-AMOLED-1.75/ESP32-S3-Touch-AMOLED-1.75-details-size2.jpg">OLED case measurements ↗</a></td></tr>
             <tr><th scope="row">Mechanical drawings</th><td><a href="https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.28/ESP32-S3-Touch-LCD-1.28.zip">LCD drawing and CAD (ZIP) ↗</a></td><td><a href="https://files.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-1.75/ESP32-S3-Touch-AMOLED-1.75-B-3D.zip">OLED case drawing and CAD (ZIP) ↗</a></td></tr>
             <tr><th scope="row">Firmware</th><td>Free download, public source</td><td>Licensed and preinstalled</td></tr>
             <tr><th scope="row">Readings and alerts</th><td colspan="2">Shared catalog, layouts and threshold alerts</td></tr>

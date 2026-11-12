@@ -170,6 +170,10 @@
 .product-details { margin-top: 24px; border-top: 1px solid var(--line); border-bottom: 0; }
 .product-details p { margin-right: 0; }
 .product-details .store-links { padding-bottom: 12px; }
+.lcd-setup-options h4 { margin: 20px 0 10px; font-size: 17px; font-weight: 600; }
+.lcd-setup-options .store-links { gap: 8px 24px; }
+.lcd-setup-options .store-links strong { white-space: nowrap; }
+.lcd-setup-options p { margin: 0; font-size: 12px; }
 .engineering-details { margin-top: 24px; border-top: 1px solid var(--line); }
 .engineering-details > summary { font-weight: 600; font-size: 17px; }
 .engineering-details .panel-compare { margin-top: 4px; }
