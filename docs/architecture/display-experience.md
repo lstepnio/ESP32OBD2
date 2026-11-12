@@ -75,7 +75,7 @@ with a shorter needle that clears the ring. The reference splash and steady wait
 
 With no valid vehicle observation, it stays until touch or data. After observations
 have arrived, sixty seconds without a valid scoped vehicle observation returns to
-the logo. With both adapters disconnected, a touch shows the readings for three
+the logo. With both adapters disconnected, a touch shows the readings for six
 seconds, measured from the most recent touch, unless fresh data arrives. The
 waking stroke is consumed so it cannot also navigate or execute an action.
 When data arrives, wake keeps the selected page if every reading is available
