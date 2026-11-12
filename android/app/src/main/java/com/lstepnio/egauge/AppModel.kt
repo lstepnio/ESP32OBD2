@@ -2557,6 +2557,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
         automaticUpdateJob?.cancel()
+        if (operation.kind == OperationKind.UPDATE && operation.terminal) operation = OperationState.Idle
         if (presentationError == updatePackageMessage) presentationError = null
         hostedUpdate = null
         selectedUpdate = value
