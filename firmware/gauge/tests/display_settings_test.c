@@ -307,52 +307,52 @@ int main(void)
     reboot();
     assert(display_settings_boot_rotation() == 2);
     display_settings_observe_auto_rotation(1, 1000);
-    assert(display_settings_persist_auto_rotation(5999) == ESP_OK && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(10999) == ESP_OK && commit_count == 0);
     /* Movement restarts dwell; observations of the same angle do not. */
-    display_settings_observe_auto_rotation(3, 5999);
-    display_settings_observe_auto_rotation(3, 7000);
-    assert(display_settings_persist_auto_rotation(10998) == ESP_OK && commit_count == 0);
-    assert(display_settings_persist_auto_rotation(10999) == ESP_OK && commit_count == 1);
+    display_settings_observe_auto_rotation(3, 10999);
+    display_settings_observe_auto_rotation(3, 12000);
+    assert(display_settings_persist_auto_rotation(20998) == ESP_OK && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(20999) == ESP_OK && commit_count == 1);
     assert(display_settings_snapshot().revision == 1 && display_settings_snapshot().rotation == 2);
     reboot();
     assert(before.auto_orientation && before.rotation == 2 && display_settings_boot_rotation() == 3);
     display_settings_observe_auto_rotation(3, 0);
-    assert(display_settings_persist_auto_rotation(5000) == ESP_OK && commit_count == 0);
-    display_settings_observe_auto_rotation(1, 6000);
-    assert(display_settings_persist_auto_rotation(11000) == ESP_OK && commit_count == 1);
-    display_settings_observe_auto_rotation(0, 12000);
-    assert(display_settings_persist_auto_rotation(16999) == ESP_OK && commit_count == 1);
-    assert(display_settings_persist_auto_rotation(17000) == ESP_OK && commit_count == 2);
+    assert(display_settings_persist_auto_rotation(10000) == ESP_OK && commit_count == 0);
+    display_settings_observe_auto_rotation(1, 11000);
+    assert(display_settings_persist_auto_rotation(21000) == ESP_OK && commit_count == 1);
+    display_settings_observe_auto_rotation(0, 22000);
+    assert(display_settings_persist_auto_rotation(31999) == ESP_OK && commit_count == 1);
+    assert(display_settings_persist_auto_rotation(32000) == ESP_OK && commit_count == 2);
     assert(display_settings_boot_rotation() == 0);
-    display_settings_observe_auto_rotation(1, 18000);
+    display_settings_observe_auto_rotation(1, 33000);
     fail_commit = 3;
-    assert(display_settings_persist_auto_rotation(23000) == ESP_FAIL && commit_count == 3);
+    assert(display_settings_persist_auto_rotation(43000) == ESP_FAIL && commit_count == 3);
     assert(display_settings_boot_rotation() == 0); /* publish only committed */
-    assert(display_settings_persist_auto_rotation(82999) == ESP_OK && commit_count == 3);
-    assert(display_settings_persist_auto_rotation(83000) == ESP_OK && commit_count == 4);
+    assert(display_settings_persist_auto_rotation(102999) == ESP_OK && commit_count == 3);
+    assert(display_settings_persist_auto_rotation(103000) == ESP_OK && commit_count == 4);
     assert(display_settings_boot_rotation() == 1);
-    display_settings_observe_auto_rotation(0, 84000);
-    assert(display_settings_persist_auto_rotation(89000) == ESP_OK && commit_count == 5);
+    display_settings_observe_auto_rotation(0, 104000);
+    assert(display_settings_persist_auto_rotation(114000) == ESP_OK && commit_count == 5);
     reboot();
     assert(display_settings_boot_rotation() == 0 && before.rotation == 2 && before.revision == 1);
     assert(display_settings_save_orientation(false, 2, 1, NULL) == ESP_OK);
     reboot();
     assert(display_settings_boot_rotation() == 2);
     display_settings_observe_auto_rotation(1, 0);
-    assert(display_settings_persist_auto_rotation(5000) == ESP_OK && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(10000) == ESP_OK && commit_count == 0);
     assert(display_settings_save_orientation(true, 2, 2, NULL) == ESP_OK);
     reboot();
     assert(display_settings_boot_rotation() == 0 && before.rotation == 2);
     /* Invalid samples reset dwell and writer contention never writes. */
     display_settings_observe_auto_rotation(1, 0);
     display_settings_observe_auto_rotation(4, 4000);
-    assert(display_settings_persist_auto_rotation(5000) == ESP_OK && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(10000) == ESP_OK && commit_count == 0);
     display_settings_observe_auto_rotation(1, 6000);
     test_lock_busy = 1;
-    assert(display_settings_persist_auto_rotation(11000) == ESP_ERR_TIMEOUT && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(16000) == ESP_ERR_TIMEOUT && commit_count == 0);
     test_lock_busy = 0;
     fail_set       = 1;
-    assert(display_settings_persist_auto_rotation(11000) == ESP_FAIL && commit_count == 0);
+    assert(display_settings_persist_auto_rotation(16000) == ESP_FAIL && commit_count == 0);
     reboot();
     assert(display_settings_boot_rotation() == 0);
     /* Corrupt or missing hints never change the manual fallback or Auto mode. */
@@ -385,13 +385,13 @@ int main(void)
         assert(display_settings_save_orientation(true, 2, 0, NULL) == ESP_OK);
         reboot();
         display_settings_observe_auto_rotation(1, 0);
-        assert(display_settings_persist_auto_rotation(5000) == ESP_OK);
+        assert(display_settings_persist_auto_rotation(10000) == ESP_OK);
         reboot();
         display_settings_observe_auto_rotation(3, 0);
         if (checkpoint == 0)
         {
             fail_commit = 1;
-            assert(display_settings_persist_auto_rotation(5000) == ESP_FAIL);
+            assert(display_settings_persist_auto_rotation(10000) == ESP_FAIL);
             assert(display_settings_boot_rotation() == 1);
         }
         else
@@ -400,7 +400,7 @@ int main(void)
             cut_after  = checkpoint == 2;
             if (setjmp(power_loss) == 0)
             {
-                (void)display_settings_persist_auto_rotation(5000);
+                (void)display_settings_persist_auto_rotation(10000);
                 assert(false);
             }
         }
