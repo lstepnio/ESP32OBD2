@@ -49,9 +49,9 @@ typedef struct
 _Static_assert(sizeof(auto_rotation_record_t) == 4, "Auto boot hint layout changed");
 static bool     auto_hint_valid, auto_candidate_valid, auto_attempted;
 static uint8_t  auto_hint, auto_candidate;
-static uint64_t auto_candidate_since_ms, auto_attempted_at_ms;
-#define AUTO_ROTATION_STABLE_MS UINT64_C(5000)
-#define AUTO_ROTATION_WRITE_INTERVAL_MS UINT64_C(60000)
+static uint64_t auto_candidate_since_ms, auto_write_failed_at_ms;
+#define AUTO_ROTATION_STABLE_MS UINT64_C(10000)
+#define AUTO_ROTATION_FAILURE_RETRY_MS UINT64_C(60000)
 
 static void load_auto_rotation(nvs_handle_t nvs)
 {

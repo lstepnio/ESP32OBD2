@@ -101,9 +101,9 @@ only after successful application. In Auto, startup uses a separate validated NV
 hint for the last checkpointed applied angle, before the logo and sensor setup.
 Manual mode continues using its saved manual angle. The hint changes neither the
 manual preference nor settings revision/wire. Missing/malformed hints fall back
-to the manual angle. An applied angle must remain stable for five seconds before
-checkpointing; attempts (including failures) are limited to once per minute and
-unchanged angles cause no write. The application owner performs flash work outside
+to the manual angle. An applied angle must remain stable for ten seconds before
+checkpointing. Each newly stable angle can replace the previous hint. Unchanged
+angles cause no write, and failed writes wait one minute before retrying. The application owner performs flash work outside
 the LVGL lock, skips maintenance, and publishes the hint only after commit. An
 abrupt power cut shortly after motion can restore the prior checkpoint. Fresh
 qualified sensor observations subsequently adjust it under the existing policy.
