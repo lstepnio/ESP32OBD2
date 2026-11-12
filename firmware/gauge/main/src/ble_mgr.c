@@ -1125,7 +1125,6 @@ ble_mgr_status_t ble_mgr_connect_service(ble_mgr_ctx_t            *mgr_ctx,
     }
     xSemaphoreGive(mgr_ctx->api.lock_mtx);
     xSemaphoreGive(scan_lock);
-    ble_companion_start();
     return status;
 }
 

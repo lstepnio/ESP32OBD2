@@ -29,6 +29,11 @@ void gauge_board_initialize(void)
     bsp_touch_init();
 }
 
+bool gauge_board_trial_ready(void)
+{
+    return true;
+}
+
 esp_err_t gauge_display_set_power(bool on)
 {
     return bsp_display_on_off(on);

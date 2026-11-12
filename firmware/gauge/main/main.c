@@ -604,7 +604,8 @@ static void boot_health_task(void *arg)
     for (unsigned i = 0; i < 60; ++i)
     {
         worker_health_t ui_health = worker_health_snapshot(WORKER_UI, (uint32_t)(esp_timer_get_time() / 1000));
-        if (boot_health_ready(ble_companion_ready(), initial_ticks, atomic_load(&g_app_tick_count), initial_ui,
+        if (gauge_board_trial_ready() &&
+            boot_health_ready(ble_companion_ready(), initial_ticks, atomic_load(&g_app_tick_count), initial_ui,
                               ui_health))
         {
             if (g_runtime && config_trial_needs_confirmation(g_running_config_record.revision))
@@ -1851,6 +1852,12 @@ void app_main(void)
                                  icons_enabled && ble_companion_phone_connected(), child_configured, obd_ready_mask);
 #endif
         ui_set_action_context(ui, owner_ready && !maintenance);
+        if (board->take_actions_button_tap && board->take_actions_button_tap() && owner_ready && !maintenance &&
+            lvgl_port_lock(0))
+        {
+            ui_show_vehicle_actions(ui);
+            lvgl_port_unlock();
+        }
         uint8_t             selected_before = atomic_load(&g_selected_page);
         uint32_t            activity_before = atomic_load(&g_page_activity_ms);
         page_cycle_reason_t before_reason   = cycling.reason;

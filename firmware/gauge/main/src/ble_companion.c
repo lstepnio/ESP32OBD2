@@ -12,6 +12,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
+#include "nimble/nimble_port.h"
 #include "host/ble_att.h"
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
@@ -1092,10 +1093,35 @@ static atomic_uint phone_conn = BLE_HS_CONN_HANDLE_NONE;
 
 static int phone_gap_event(struct ble_gap_event *event, void *arg);
 
+static struct ble_npl_callout advertising_retry;
+static bool advertising_retry_initialized;
+static uint32_t advertising_retry_ms = 250;
+
+static void advertise(void);
+
+static void retry_advertising(struct ble_npl_event *event)
+{
+    (void)event;
+    if (ble_hs_synced())
+        advertise();
+}
+
+static void schedule_advertising_retry(void)
+{
+    if (!advertising_retry_initialized)
+        return;
+    uint32_t delay = advertising_retry_ms + esp_random() % 125U;
+    if (ble_npl_callout_reset(&advertising_retry, ble_npl_time_ms_to_ticks32(delay)) != BLE_NPL_OK)
+        ESP_LOGW(TAG, "Could not schedule advertising retry");
+    if (advertising_retry_ms < 4000)
+        advertising_retry_ms *= 2;
+}
+
 static void advertise(void)
 {
     if (phone_conn != BLE_HS_CONN_HANDLE_NONE || ble_gap_adv_active())
         return;
+    atomic_store(&g_ready, false);
     struct ble_hs_adv_fields fields = {0};
     fields.flags                    = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
     fields.uuids128                 = (ble_uuid128_t *)&service_uuid;
@@ -1105,6 +1131,7 @@ static void advertise(void)
     if (rc != 0)
     {
         ESP_LOGW(TAG, "Advertisement fields failed: %d", rc);
+        schedule_advertising_retry();
         return;
     }
     struct ble_hs_adv_fields response = {0};
@@ -1116,6 +1143,7 @@ static void advertise(void)
     if (rc != 0)
     {
         ESP_LOGW(TAG, "Scan response failed: %d", rc);
+        schedule_advertising_retry();
         return;
     }
     struct ble_gap_adv_params params = {0};
@@ -1123,9 +1151,17 @@ static void advertise(void)
     params.disc_mode                 = BLE_GAP_DISC_MODE_GEN;
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &params, phone_gap_event, NULL);
     if (rc != 0)
+    {
         ESP_LOGW(TAG, "Advertising failed: %d", rc);
+        schedule_advertising_retry();
+    }
     else
+    {
+        advertising_retry_ms = 250;
+        if (advertising_retry_initialized)
+            ble_npl_callout_stop(&advertising_retry);
         atomic_store(&g_ready, true);
+    }
 }
 
 static int phone_gap_event(struct ble_gap_event *event, void *arg)
@@ -1250,6 +1286,9 @@ int ble_companion_register(void)
 
 void ble_companion_reset(void)
 {
+    if (advertising_retry_initialized)
+        ble_npl_callout_stop(&advertising_retry);
+    advertising_retry_ms = 250;
     database_announced = false;
     atomic_store(&g_ready, false);
     phone_conn             = BLE_HS_CONN_HANDLE_NONE;
@@ -1329,6 +1368,9 @@ void ble_companion_forget_owner(void)
 
 void ble_companion_start(void)
 {
+    if (!advertising_retry_initialized)
+        advertising_retry_initialized =
+            ble_npl_callout_init(&advertising_retry, nimble_port_get_dflt_eventq(), retry_advertising, NULL) == 0;
     int rc = ble_hs_util_ensure_addr(0);
     if (rc == 0)
         rc = ble_hs_id_infer_auto(0, &own_addr_type);

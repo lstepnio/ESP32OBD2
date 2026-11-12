@@ -50,6 +50,6 @@ int main(int argc, char **argv) {
                 ],
                 check=True,
             )
-            for scenario in range(4):
+            for scenario in range(5):
                 with self.subTest(scenario=scenario):
                     subprocess.run([str(binary), str(scenario)], check=True)

@@ -889,7 +889,7 @@ static void ui_touch_callback(lv_event_t *e)
             ui->wake_sequence = false;
         else
         {
-            if (code == LV_EVENT_CLICKED || code == LV_EVENT_PRESS_LOST)
+            if (code == LV_EVENT_CLICKED || code == LV_EVENT_PRESS_LOST || code == LV_EVENT_INDEV_RESET)
                 ui->wake_sequence = false;
             return;
         }
@@ -934,6 +934,7 @@ static void ui_touch_callback(lv_event_t *e)
         ui->pressed_at         = xTaskGetTickCount();
         dispatch_touch(ui, LV_EVENT_PRESSED);
         break;
+    case LV_EVENT_INDEV_RESET:
     case LV_EVENT_PRESS_LOST:
         page_action_reset(&ui->action);
         ui->press_active = ui->action_enter_pending = false;
@@ -1345,7 +1346,7 @@ static void abs_discard_event(lv_event_t *event)
         abs_discard.release_ready = true;
         lv_label_set_text_static(abs_discard.label, "Release to discard");
     }
-    else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST)
+    else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST || code == LV_EVENT_INDEV_RESET)
     {
         bool confirmed =
             code == LV_EVENT_RELEASED && abs_discard.pressed_us >= 0 && now - abs_discard.pressed_us >= 3000000;
@@ -3069,7 +3070,7 @@ static void command_pointer(ui_t *ui, lv_event_code_t code, lv_obj_t *target, in
                 ui->command_moved = true;
         }
     }
-    else if (code == LV_EVENT_PRESS_LOST)
+    else if (code == LV_EVENT_PRESS_LOST || code == LV_EVENT_INDEV_RESET)
     {
         ui->command_press = ui->command_hold_armed = ui->command_burnout_committed = false;
         atomic_store(&ui->command_burnout_held, false);
