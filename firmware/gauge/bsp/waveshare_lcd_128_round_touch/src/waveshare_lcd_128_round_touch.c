@@ -133,10 +133,10 @@ static void bsp_touch_configure_input(esp_lcd_panel_io_handle_t io)
 static i2c_master_bus_handle_t shared_touch_bus;
 
 static i2c_master_dev_handle_t touch_device;
-static portMUX_TYPE touch_lock = portMUX_INITIALIZER_UNLOCKED;
-static lv_point_t touch_point;
-static TickType_t touch_sample_at;
-static bool touch_pressed, touch_valid;
+static portMUX_TYPE            touch_lock = portMUX_INITIALIZER_UNLOCKED;
+static lv_point_t              touch_point;
+static TickType_t              touch_sample_at;
+static bool                    touch_pressed, touch_valid;
 
 static esp_err_t touch_rx(esp_lcd_panel_io_t *io, int reg, void *data, size_t size)
 {
@@ -158,20 +158,20 @@ static esp_lcd_panel_io_t touch_io = {.rx_param = touch_rx, .tx_param = touch_tx
 
 static void touch_worker(void *context)
 {
-    esp_lcd_touch_handle_t touch = context;
-    unsigned delay_ms = 25;
+    esp_lcd_touch_handle_t touch    = context;
+    unsigned               delay_ms = 25;
     for (;;)
     {
-        esp_lcd_touch_point_data_t point = {0};
-        uint8_t count = 0;
-        esp_err_t result = esp_lcd_touch_read_data(touch);
+        esp_lcd_touch_point_data_t point  = {0};
+        uint8_t                    count  = 0;
+        esp_err_t                  result = esp_lcd_touch_read_data(touch);
         if (result == ESP_OK)
             result = esp_lcd_touch_get_data(touch, &point, &count, 1);
         TickType_t now = xTaskGetTickCount();
         portENTER_CRITICAL(&touch_lock);
-        touch_valid = result == ESP_OK;
-        touch_pressed = touch_valid && count && point.x < BSP_LCD_H_RES && point.y < BSP_LCD_V_RES;
-        touch_point = (lv_point_t){.x = point.x, .y = point.y};
+        touch_valid     = result == ESP_OK;
+        touch_pressed   = touch_valid && count && point.x < BSP_LCD_H_RES && point.y < BSP_LCD_V_RES;
+        touch_point     = (lv_point_t){.x = point.x, .y = point.y};
         touch_sample_at = now;
         portEXIT_CRITICAL(&touch_lock);
         delay_ms = result == ESP_OK ? 25 : delay_ms < 800 ? delay_ms * 2 : 800;
@@ -183,9 +183,9 @@ static void read_touch(lv_indev_t *indev, lv_indev_data_t *data)
 {
     TickType_t now = xTaskGetTickCount();
     portENTER_CRITICAL(&touch_lock);
-    bool valid = touch_valid && now - touch_sample_at <= pdMS_TO_TICKS(150);
-    bool pressed = valid && touch_pressed;
-    lv_point_t point = touch_point;
+    bool       valid   = touch_valid && now - touch_sample_at <= pdMS_TO_TICKS(150);
+    bool       pressed = valid && touch_pressed;
+    lv_point_t point   = touch_point;
     portEXIT_CRITICAL(&touch_lock);
     if (!valid && lv_indev_get_state(indev) == LV_INDEV_STATE_PRESSED)
     {
@@ -225,8 +225,8 @@ esp_err_t bsp_touch_init(void)
 
     const i2c_device_config_t device = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS,
-        .scl_speed_hz = 100000,
+        .device_address  = ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS,
+        .scl_speed_hz    = 100000,
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &device, &touch_device));
     esp_lcd_panel_io_handle_t tp_io_handle = &touch_io;
@@ -268,9 +268,8 @@ esp_err_t bsp_touch_init(void)
     }
     lvgl_port_unlock();
     BSP_NULL_CHECK(input, ESP_ERR_NO_MEM);
-    ESP_ERROR_CHECK(xTaskCreate(touch_worker, "lcd_touch", 3072, touch_handle, 3, NULL) == pdPASS
-                        ? ESP_OK
-                        : ESP_ERR_NO_MEM);
+    ESP_ERROR_CHECK(xTaskCreate(touch_worker, "lcd_touch", 3072, touch_handle, 3, NULL) == pdPASS ? ESP_OK
+                                                                                                  : ESP_ERR_NO_MEM);
 
     ESP_LOGI(TAG, "Touch panel initialized successfully");
     return ESP_OK;

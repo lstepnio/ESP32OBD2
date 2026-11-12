@@ -639,9 +639,8 @@ static void boot_health_task(void *arg)
     for (unsigned i = 0; i < 60; ++i)
     {
         worker_health_t ui_health = worker_health_snapshot(WORKER_UI, (uint32_t)(esp_timer_get_time() / 1000));
-        if (gauge_board_trial_ready() &&
-            boot_health_ready(ble_companion_ready(), initial_ticks, atomic_load(&g_app_tick_count), initial_ui,
-                              ui_health))
+        if (gauge_board_trial_ready() && boot_health_ready(ble_companion_ready(), initial_ticks,
+                                                           atomic_load(&g_app_tick_count), initial_ui, ui_health))
         {
             if (g_runtime && config_trial_needs_confirmation(g_running_config_record.revision))
             {

@@ -298,11 +298,11 @@ static bool start_maintenance_network(void)
         return false;
     }
     xSemaphoreTake(state_lock, portMAX_DELAY);
-    uint32_t address = info.ip.addr;
-    state.ip[0]      = address & 0xff;
-    state.ip[1]      = (address >> 8) & 0xff;
-    state.ip[2]      = (address >> 16) & 0xff;
-    state.ip[3]      = (address >> 24) & 0xff;
+    uint32_t address        = info.ip.addr;
+    state.ip[0]             = address & 0xff;
+    state.ip[1]             = (address >> 8) & 0xff;
+    state.ip[2]             = (address >> 16) & 0xff;
+    state.ip[3]             = (address >> 24) & 0xff;
     state.listener_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
     publish_locked();
     xSemaphoreGive(state_lock);
@@ -552,7 +552,7 @@ static void server_task(void *arg)
             vTaskDelay(pdMS_TO_TICKS(250));
         }
         unsigned network = atomic_load(&network_generation);
-        int server = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+        int      server  = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         if (server < 0)
         {
             vTaskDelay(pdMS_TO_TICKS(1000));
@@ -572,10 +572,9 @@ static void server_task(void *arg)
             continue;
         }
         xSemaphoreTake(state_lock, portMAX_DELAY);
-        if (atomic_load(&wifi_active) && network == atomic_load(&network_generation) &&
-            state.phase == PHASE_STARTING)
+        if (atomic_load(&wifi_active) && network == atomic_load(&network_generation) && state.phase == PHASE_STARTING)
         {
-            state.phase = PHASE_READY;
+            state.phase  = PHASE_READY;
             state.result = RESULT_OK;
             publish_locked();
         }
@@ -613,11 +612,10 @@ static void server_task(void *arg)
         }
         close(server);
         xSemaphoreTake(state_lock, portMAX_DELAY);
-        if (atomic_load(&wifi_active) && network == atomic_load(&network_generation) &&
-            state.phase == PHASE_READY)
+        if (atomic_load(&wifi_active) && network == atomic_load(&network_generation) && state.phase == PHASE_READY)
         {
-            state.phase = PHASE_STARTING;
-            state.result = RESULT_PENDING;
+            state.phase             = PHASE_STARTING;
+            state.result            = RESULT_PENDING;
             state.listener_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(5000);
             publish_locked();
         }
@@ -684,8 +682,9 @@ static void worker_task(void *arg)
         xSemaphoreTake(state_lock, portMAX_DELAY);
         bool listener_failed = atomic_load(&wifi_active) && state.phase == PHASE_STARTING &&
                                (int32_t)(xTaskGetTickCount() - state.listener_deadline) >= 0;
-        should_close = listener_failed || (state.phase == PHASE_READY && (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
-                       ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
+        should_close         = listener_failed ||
+                               (state.phase == PHASE_READY && (int32_t)(state.expires_at - xTaskGetTickCount()) <= 0) ||
+                               ota_recovery_close_network(abandoned, state.session_id, state.phase == PHASE_READY);
         xSemaphoreGive(state_lock);
         if (should_close)
             stop_maintenance_network();
