@@ -28,6 +28,7 @@ typedef struct
     gauge_brightness_control_t brightness_control;
     uint32_t                   ota_target_tag; /* Zero disables owner firmware updates. */
     bool (*night_button_pressed)(void);
+    bool (*take_actions_button_tap)(void);
     uint32_t (*read_utc)(void); /* 0 when unprovisioned or invalid. */
     void (*sync_utc)(uint32_t utc);
 } gauge_board_t;
@@ -39,6 +40,7 @@ static inline bool gauge_board_accepts_ota_target(const gauge_board_t *board, ui
 
 const gauge_board_t *gauge_board_description(void);
 void                 gauge_board_initialize(void);
+bool                 gauge_board_trial_ready(void);
 esp_err_t            gauge_display_set_power(bool on);
 esp_err_t            gauge_display_set_brightness(uint8_t percent);
 esp_err_t            gauge_display_set_rotation(lv_display_rotation_t rotation);

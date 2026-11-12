@@ -14,7 +14,7 @@ class WifiDriverLifecycleTests(unittest.TestCase):
         compiler = shutil.which("cc")
         self.assertIsNotNone(compiler, "A C compiler is required for this production fixture")
         source = (ROOT / "firmware/gauge/main/src/wifi_bulk.c").read_text()
-        start = source.index("static void release_wifi_driver(void)")
+        start = source.index("static bool release_wifi_driver(void)")
         end = source.index("static bool start_maintenance_network(void)", start)
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
