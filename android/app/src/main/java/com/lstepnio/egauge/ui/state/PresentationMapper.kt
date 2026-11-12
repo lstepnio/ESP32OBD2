@@ -332,7 +332,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
         capabilities?.experimentalNumericConfig == true
     val car = carState(nowElapsedMs, busy, details)
     val privateLocalUpdate = privateUpdateTarget != null
-    val packageFailure = updatePackageFailureUi(operation, updatePackageMessage, presentationError)
+    val packageFailure = updatePackageFailure?.let { friendlyFailure(it, update = true) }
     val updateStatus = when {
         updateInProgress || updatePreparation == "downloading" -> op.status
 
@@ -667,7 +667,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 StatusTone.Error
             )
         } else {
-            globalFailureNotice(presentationError?.takeUnless { it == updatePackageMessage })
+            globalFailureNotice(presentationError)
         },
         connection
     )

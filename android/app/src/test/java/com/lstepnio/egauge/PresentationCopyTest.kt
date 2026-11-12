@@ -162,10 +162,9 @@ class PresentationCopyTest {
         val message = "The gauge Wi-Fi connection dropped"
         for (stage in listOf(OperationStage.FAILED, OperationStage.OUTCOME_UNKNOWN)) {
             val operation = OperationState(1, OperationKind.UPDATE, stage, "Installing firmware", terminal = true)
-            assertEquals("Could not connect for the update", updatePackageFailureUi(operation, message, null)?.title)
+            assertEquals("Could not connect for the update", friendlyFailure(message, update = true).title)
             assertFalse(showTransferBanner(operationUi(operation)))
         }
-        assertNull(updatePackageFailureUi(OperationState.Idle, message, null))
     }
 
     @Test fun pendingAndRolledBackUpdatesNeverClaimSuccess() {

@@ -1306,6 +1306,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             // The source verifies the signed catalog and complete bundle before either becomes visible.
                             hostedUpdate = downloaded
                             selectedUpdate = requireNotNull(downloaded.bundle)
+                            updatePackageFailure = null
                             updatePackageMessage =
                                 "Signed development update ${downloaded.release.version} is ready"
                         }
@@ -1590,6 +1591,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "A previous update was interrupted. Reconnect and check running firmware before retrying."
         } ?: "No update package selected"
     )
+        private set
+    var updatePackageFailure by mutableStateOf<String?>(null)
         private set
     var hostedUpdate by mutableStateOf<HostedUpdate?>(null)
         private set
@@ -2556,7 +2559,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun updatePackageLoaded(value: DevUpdateBundle) {
         automaticUpdateJob?.cancel()
-        if (operation.kind == OperationKind.UPDATE && operation.terminal) operation = OperationState.Idle
+        updatePackageFailure = null
         if (presentationError == updatePackageMessage) presentationError = null
         hostedUpdate = null
         selectedUpdate = value
@@ -2567,6 +2570,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             "Development signature valid • ${value.image.size} bytes • SHA-256 ${hash.take(12)}…"
     }
     suspend fun updateStarted() {
+        updatePackageFailure = null
         updateInProgress = true
         updateMayHaveChangedGauge = false
         scanning = true
@@ -2741,6 +2745,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updatePreparation = "held"
         }
         updatePackageMessage = message
+        updatePackageFailure = message.takeIf { pendingUpdateRecovery == null }
         if (pendingUpdateRecovery != null) foregroundConnection.retrySoon()
     }
     fun installSelectedUpdate() = installSelectedUpdate(bluetoothRecovery = false)
@@ -3518,7 +3523,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         else -> stage.name.lowercase().replace('_', ' ')
     }
     fun updatePackageError(message: String) {
-        presentationError = message
+        updatePackageFailure = message
         selectedUpdate = null
         updatePackageMessage = message
     }
@@ -3612,6 +3617,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val downloaded = GitHubFirmwareSource(getApplication()).download(available)
                     hostedUpdate = downloaded
                     selectedUpdate = requireNotNull(downloaded.bundle)
+                    updatePackageFailure = null
                     updatePackageMessage =
                         "GitHub development firmware ${downloaded.release.version} verified and ready"
                     hostedUpdateMessage =
