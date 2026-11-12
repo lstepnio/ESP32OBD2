@@ -43,20 +43,36 @@ int main(void)
     sunset_policy_observe(&no_clock, true);
     assert(no_clock.night && !no_clock.override);
     sunset_button_t button = {0};
-    assert(!sunset_button_release(&button, true, 5)); /* Held at boot. */
-    assert(!sunset_button_release(&button, true, 50));
-    assert(!sunset_button_release(&button, false, 80));
-    assert(!sunset_button_release(&button, false, 120));
-    assert(!sunset_button_release(&button, true, 200));
-    assert(!sunset_button_release(&button, false, 210)); /* Bounce. */
-    assert(!sunset_button_release(&button, true, 220));
-    assert(!sunset_button_release(&button, true, 260));
-    assert(!sunset_button_release(&button, false, 300));
-    assert(sunset_button_release(&button, false, 340));
-    assert(!sunset_button_release(&button, false, 380));
-    assert(!sunset_button_release(&button, true, 400));
-    assert(!sunset_button_release(&button, true, 440));
-    assert(!sunset_button_release(&button, false, 1150)); /* Long press. */
-    assert(!sunset_button_release(&button, false, 1200));
+    assert(!sunset_button_update(&button, true, true, 5)); /* Held at boot. */
+    assert(!sunset_button_update(&button, true, true, 50));
+    assert(!sunset_button_update(&button, false, true, 80));
+    assert(!sunset_button_update(&button, false, true, 120));
+    assert(!sunset_button_update(&button, true, true, 200));
+    assert(!sunset_button_update(&button, false, true, 210)); /* Bounce. */
+    assert(!sunset_button_update(&button, true, true, 220));
+    assert(!sunset_button_update(&button, true, true, 260));
+    assert(!sunset_button_update(&button, false, true, 300));
+    assert(sunset_button_update(&button, false, true, 340));
+    assert(!sunset_button_update(&button, false, true, 380));
+    assert(!sunset_button_update(&button, true, true, 400));
+    assert(!sunset_button_update(&button, true, true, 440));
+    assert(!sunset_button_update(&button, false, true, 1150)); /* Long press. */
+    assert(!sunset_button_update(&button, false, true, 1200));
+    /* With the main loop's 20 ms receive wait, a quick press can be visible
+     * for only two polls. Maintenance still samples and coalesces releases. */
+    assert(!sunset_button_update(&button, true, false, 1300));
+    assert(!sunset_button_update(&button, true, false, 1320));
+    assert(!sunset_button_update(&button, false, false, 1340));
+    assert(!sunset_button_update(&button, false, false, 1360));
+    assert(sunset_button_update(&button, false, true, 1400));
+    assert(!sunset_button_update(&button, false, true, 1420));
+    for (uint64_t at = 1500; at <= 1600; at += 100)
+    {
+        assert(!sunset_button_update(&button, true, false, at));
+        assert(!sunset_button_update(&button, true, false, at + 20));
+        assert(!sunset_button_update(&button, false, false, at + 40));
+        assert(!sunset_button_update(&button, false, false, at + 60));
+    }
+    assert(!sunset_button_update(&button, false, true, 1700));
     puts("PASS: seasonal and polar daylight, input bounds, and override lifetime");
 }

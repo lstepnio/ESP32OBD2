@@ -1762,8 +1762,9 @@ void app_main(void)
         bool                   maintenance = !transfer_gate_vehicle_allowed();
         static sunset_button_t night_button;
         uint64_t               display_now_ms = (uint64_t)(esp_timer_get_time() / 1000);
-        bool            night_tap = board->night_button_pressed &&
-                                    sunset_button_release(&night_button, board->night_button_pressed(), display_now_ms);
+        bool                   night_tap =
+            board->night_button_pressed &&
+            sunset_button_update(&night_button, board->night_button_pressed(), !maintenance, display_now_ms);
         static uint64_t next_brightness_try;
         if (!maintenance)
         {
