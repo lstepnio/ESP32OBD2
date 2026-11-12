@@ -181,6 +181,7 @@ data class SettingsUiState(
     val orientationProtocolSupported: Boolean = false,
     val sunsetBrightness: com.lstepnio.egauge.SunsetBrightness? = null,
     val connectionIcons: Boolean? = null,
+    val displaySaveError: String? = null,
     val checkingAfterSave: Boolean = false
 )
 

@@ -1592,6 +1592,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } ?: "No update package selected"
     )
         private set
+    var displaySaveError by mutableStateOf<String?>(null)
+        private set
     var updatePackageFailure by mutableStateOf<String?>(null)
         private set
     var hostedUpdate by mutableStateOf<HostedUpdate?>(null)
@@ -2187,6 +2189,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         scanning = value
     }
     private fun resetConnectionForSelection(message: String) {
+        displaySaveError = null
         scanning = false
         deviceMessage = message
         capabilities = null
@@ -2811,22 +2814,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     val result = if (usingWifi) {
-                        val device = bleClient.selectedGauge()
-                        retryWifiUpdateStartup(onRetry = {
-                            operation = operation.copy(title = "Reconnecting for update")
-                        }) { stage ->
-                            client.installUpdateWifi(
-                                device,
-                                bundle,
-                                wifiVersion == "experimental-softap-aead-v2",
-                                reportProgress,
-                                { next ->
-                                    stage(next)
-                                    reportStage(next)
-                                },
-                                debugOtaPauseBeforeActivationMs
-                            )
-                        }
+                        client.installUpdateWifi(
+                            bleClient.selectedGauge(),
+                            bundle,
+                            wifiVersion == "experimental-softap-aead-v2",
+                            reportProgress,
+                            reportStage,
+                            debugOtaPauseBeforeActivationMs
+                        )
                     } else {
                         client.installUpdate(
                             bleClient.selectedGauge(),
@@ -3467,6 +3462,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 foregroundConnection.runUserOperation(kind) { id ->
                     presentationError = null
+                    if (kind == OperationKind.DISPLAY_SETTINGS) displaySaveError = null
                     scanning = true
                     operation = OperationState(id, kind, OperationStage.CONNECTING, title)
                     block(id)
@@ -3486,6 +3482,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 scanning = false
                 val message = error.message ?: "$title did not complete"
                 deviceMessage = message
+                if (kind == OperationKind.DISPLAY_SETTINGS) {
+                    displaySaveError = when (error) {
+                        is DisplaySettingsConflictException -> error.message
+                        is GaugeCommandRejectedException -> "The gauge rejected this change. Try again."
+                        else -> null
+                    }
+                }
                 operationFailed(
                     message,
                     outcomeUnknown =

@@ -508,6 +508,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             orientationProtocolSupported = capabilities?.automaticOrientationVersion == 1,
             sunsetBrightness = sunsetBrightness,
             connectionIcons = connectionIcons?.enabled,
+            displaySaveError = displaySaveError,
             checkingAfterSave = operation.kind == OperationKind.DISPLAY_SETTINGS && operation.stage == OperationStage.FAILED
         ),
         ExpertUiState(

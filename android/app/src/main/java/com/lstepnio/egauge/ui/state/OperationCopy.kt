@@ -55,7 +55,7 @@ fun operationUi(state: OperationState, confirmedSetup: Boolean = false): Operati
 
         OperationStage.PREPARING -> when {
             update -> StatusUi(
-                if (state.title == "Reconnecting for update") state.title else "Preparing update",
+                "Preparing update",
                 "Keep your gauge powered and the app open.",
                 StatusTone.Loading
             )
