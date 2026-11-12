@@ -114,13 +114,16 @@ data to the real API; use browser request interception for success/error checks.
 
 The OLED-first shop proposal is in
 [`website-shop`](../docs/design/gauge-ui-proposal/website-shop/index.html).
-Serve the verified draft on port 8795 and launch the existing feedback server:
+Review 2 exposes paid LCD setup and distinguishes outer-face from display-opening
+dimensions. Review 1 and its submitted feedback are preserved; unchanged images
+retain their previous decisions. Serve the verified draft on port 8798 and launch
+the existing feedback server:
 
 ```sh
-python3 docs/design/gauge-ui-proposal/review_server.py --review website-shop --port 8796 --storage /path/to/persistent/website-shop-v1.json
+python3 docs/design/gauge-ui-proposal/review_server.py --review website-shop --port 8799 --storage /path/to/persistent/website-shop-v2.json
 ```
 
-Open `/docs/design/gauge-ui-proposal/website-shop/index.html` on port 8796.
+Open `/docs/design/gauge-ui-proposal/website-shop/index.html` on port 8799.
 The server freezes the review images, shares saved feedback across browsers and
 rejects conflicting revisions. Keep feedback outside disposable worktrees. A new
 round needs a separate storage file; retain byte-identical approved sections via
