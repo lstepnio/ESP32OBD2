@@ -196,13 +196,13 @@ static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 
 /* Only the maintenance command worker owns this lifecycle. Keep the shared
  * event loop/netif runtime, but retire this AP's driver, handlers and DMA pool. */
-static void release_wifi_driver(void)
+static bool release_wifi_driver(void)
 {
     if (wifi_initialized)
     {
+        if (esp_wifi_stop() != ESP_OK || esp_wifi_deinit() != ESP_OK)
+            return false;
         esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event);
-        esp_wifi_stop();
-        esp_wifi_deinit();
         wifi_initialized = false;
     }
     if (ap_netif)
@@ -210,6 +210,7 @@ static void release_wifi_driver(void)
         esp_netif_destroy_default_wifi(ap_netif);
         ap_netif = NULL;
     }
+    return true;
 }
 
 static bool initialize_wifi(void)
@@ -244,8 +245,8 @@ static bool start_maintenance_network(void)
     atomic_fetch_add(&network_generation, 1);
     atomic_store(&wifi_phone_connected, false);
     atomic_fetch_add(&wifi_generation, 1);
-    if (wifi_initialized)
-        esp_wifi_stop();
+    if (!release_wifi_driver())
+        return false;
     memory_health_log("wifi_before_init");
     if (!wifi_initialized &&
         !wifi_bulk_policy_init_memory_ready(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
@@ -317,11 +318,11 @@ static void stop_maintenance_network(void)
     atomic_fetch_add(&network_generation, 1);
     atomic_store(&wifi_phone_connected, false);
     atomic_fetch_add(&wifi_generation, 1);
-    release_wifi_driver();
-    memory_health_log("wifi_released");
+    bool released = release_wifi_driver();
+    memory_health_log(released ? "wifi_released" : "wifi_cleanup_failed");
     ble_mgr_set_paused(false);
     xSemaphoreTake(state_lock, portMAX_DELAY);
-    clear_session_locked(PHASE_OFF, RESULT_OK);
+    clear_session_locked(released ? PHASE_OFF : PHASE_FAILED, released ? RESULT_OK : RESULT_NETWORK);
     xSemaphoreGive(state_lock);
 }
 
@@ -657,8 +658,8 @@ static void worker_task(void *arg)
                 transfer_gate_release(TRANSFER_GATE_WIFI_STARTUP);
                 if (!start_maintenance_network())
                 {
-                    release_wifi_driver();
-                    memory_health_log("wifi_failed_released");
+                    bool released = release_wifi_driver();
+                    memory_health_log(released ? "wifi_failed_released" : "wifi_cleanup_failed");
                     ble_mgr_set_paused(false);
                     xSemaphoreTake(state_lock, portMAX_DELAY);
                     clear_session_locked(PHASE_FAILED, RESULT_NETWORK);
