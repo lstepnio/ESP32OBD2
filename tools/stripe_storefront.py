@@ -76,6 +76,8 @@ def save_state(path, state):
 
 
 def setup(stripe, path, prices, shipping_cents):
+    # The LCD flashing service is inquiry-only and does not affect shipped orders.
+    prices = {key: prices[key] for key in (*OFFERS, ADAPTER)}
     if not 0 < shipping_cents <= 10_000:
         raise ValueError("Supply a positive test shipping amount in USD cents")
     if test_object(stripe.request("/v1/tax/settings"))["status"] != "active":

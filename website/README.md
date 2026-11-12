@@ -223,7 +223,10 @@ for commercial publication or replace the cutouts with original photographs.
 ### Checkout and fulfillment
 
 `storefront.json` owns the USD item prices. The public build rejects any non-null
-checkout setting. Each gauge button opens the existing inquiry form. Both gauge
+checkout setting. Gauge requests and the LCD flashing service open the inquiry
+form. The flashing service is for a customer-owned LCD board and covers help
+installing the free firmware through the browser USB tool. The self-service
+tool stays free. Both gauge
 prices exclude the adapter. The Vgate add-on uses the same price for either gauge. The LCD supports one
 connected adapter. Customers can also reuse a compatible BLE adapter. Stripe
 Payment Links are created separately in the sandbox and kept out of the webroot.
