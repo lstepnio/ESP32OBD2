@@ -1094,8 +1094,8 @@ static atomic_uint phone_conn = BLE_HS_CONN_HANDLE_NONE;
 static int phone_gap_event(struct ble_gap_event *event, void *arg);
 
 static struct ble_npl_callout advertising_retry;
-static bool advertising_retry_initialized;
-static uint32_t advertising_retry_ms = 250;
+static bool                   advertising_retry_initialized;
+static uint32_t               advertising_retry_ms = 250;
 
 static void advertise(void);
 
@@ -1289,7 +1289,7 @@ void ble_companion_reset(void)
     if (advertising_retry_initialized)
         ble_npl_callout_stop(&advertising_retry);
     advertising_retry_ms = 250;
-    database_announced = false;
+    database_announced   = false;
     atomic_store(&g_ready, false);
     phone_conn             = BLE_HS_CONN_HANDLE_NONE;
     extended_status_mode   = 0;

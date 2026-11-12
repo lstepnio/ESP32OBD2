@@ -122,3 +122,9 @@ Before beta: two-hour combined polling/display/phone session without reset; 100 
 Behavior and limitations documented; acceptance trace to a requirement; focused tests and relevant builds pass; updated schema/examples/ADRs; diagnostics redaction checked; dependency/license/SBOM record; recovery instructions; release notes; no pending claims masquerading as implementation. PRs state exactly which checks ran and which require hardware.
 
 Release bundle contains board-specific image, signed metadata, signatures, hashes, exact source revision/toolchain/dependency inventory, migration compatibility and release notes. Never commit signing keys. Signing and production release publication require a protected workflow and concrete release review.
+
+When changing a shared display area, add a combined-state case to the
+existing host renderer. Check both entry and exit with the competing state
+still active. The connection review checks that action feedback hides
+connection icons, erases their pixels, and restores them when feedback ends.
+Run it in the existing firmware test lane.

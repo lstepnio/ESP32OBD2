@@ -122,6 +122,24 @@ static void review_connections(const char *directory)
     tick(60);
     assert(ui->rendered_connections == 2 && footer_color_at(120, FOOTER_Y, 0x538dbb));
 
+    ui_configure_page_action(ui, (page_action_config_t){
+                                     .enabled        = true,
+                                     .count          = 3,
+                                     .window_ms      = 5000,
+                                     .vehicle_menu   = true,
+                                     .air_up_seconds = 300,
+                                     .winch_seconds  = 60,
+                                 });
+    ui_set_action_context(ui, true);
+    tick(60);
+    ui->action.cooling     = true;
+    ui->action.executed_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    ui->action_feedback = ui->action_feedback_cooldown = true;
+    ui->action_feedback_ms                             = ui->action.executed_ms;
+    review_frame(ui, directory, "cooldown-hides-connections", 0, 0);
+    tick(2100);
+    review_frame(ui, directory, "cooldown-restores-connections", FOOTER_Y, 2);
+
     ui_set_value(ui, 12, &rpm);
     ui_set_diagnostics(ui, true, true, false, 3, "P0123");
     review_frame(ui, directory, "18-check-engine", 0, 0);
@@ -136,15 +154,6 @@ static void review_connections(const char *directory)
     ui_show_pairing_code(ui, UI_PAIRING_HIDDEN);
     tick(60);
 
-    ui_configure_page_action(ui, (page_action_config_t){
-                                     .enabled        = true,
-                                     .count          = 3,
-                                     .window_ms      = 5000,
-                                     .vehicle_menu   = true,
-                                     .air_up_seconds = 300,
-                                     .winch_seconds  = 60,
-                                 });
-    ui_set_action_context(ui, true);
     ui_set_idle_protection(ui, true);
     ui_show_vehicle_actions(ui);
     ui_set_vehicle_action_status(ui, 1, VEHICLE_READY, 1, 0, 0, 0);
@@ -154,5 +163,5 @@ static void review_connections(const char *directory)
     ui_set_vehicle_action_status(ui, 1, VEHICLE_UNKNOWN, 1, 0, 0, 0);
     review_frame(ui, directory, "24-action-recovery", 0, 0);
 
-    puts("PASS: 24 production footer captures, live link colors, and display priorities");
+    puts("PASS: 26 production footer captures, live link colors, and display priorities");
 }

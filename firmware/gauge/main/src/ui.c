@@ -1685,7 +1685,8 @@ static bool connection_footer_allowed(const ui_t *ui)
     ui_diagnostics_t diagnostics = visible_diagnostics(ui);
     return !ui->pairing_visible && !ui->calibration_mode && !ui->command_menu_visible && !ui->rendered_alert.severity &&
            !ui->rendered_alert.attention && !(diagnostics.valid && (diagnostics.mil_on || diagnostics.count)) &&
-           !ui->action.progress && !ui->action_enter_pending && !ui->simulated && !atomic_load(&ui->showcase_active);
+           !ui->action.progress && !ui->action_enter_pending && !ui->action_feedback && !ui->simulated &&
+           !atomic_load(&ui->showcase_active);
 }
 
 static void draw_connection_footer(lv_event_t *event)
