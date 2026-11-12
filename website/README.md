@@ -222,7 +222,9 @@ for commercial publication or replace the cutouts with original photographs.
 
 ### Checkout and fulfillment
 
-`storefront.json` owns the USD item prices. The public build rejects any non-null
+`storefront.json` owns the USD hardware prices. The LCD assisted flashing service
+is an inquiry for browser-based help with the customer’s own board. The free
+self-service flasher is available at `/recovery/`. The public build rejects any non-null
 checkout setting. Each gauge button opens the existing inquiry form. Both gauge
 prices exclude the adapter. The Vgate add-on uses the same price for either gauge. The LCD supports one
 connected adapter. Customers can also reuse a compatible BLE adapter. Stripe
