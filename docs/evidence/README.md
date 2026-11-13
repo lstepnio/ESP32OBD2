@@ -5,6 +5,7 @@ their original measurements and old pending steps, not current instructions.
 [Current state](../current-state.md) owns support; [backlog](../backlog.md) owns work.
 Search only the relevant report when exact evidence is needed.
 
+- [Development device refresh and cleanup, 2026-11-10](development-device-refresh.md)
 - [Repository maintenance and behavior-preservation checks](repository-maintenance.md)
 - [GATT long-read recovery investigation](gatt-long-read-recovery.md)
 - [ESP32 memory audit and hardening](esp32-memory-hardening.md)
