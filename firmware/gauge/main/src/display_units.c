@@ -56,7 +56,12 @@ double display_units_decimal(double canonical, const char *unit, bool imperial)
     return canonical;
 }
 
-void display_units_format(char *out, size_t length, double canonical, const char *unit, bool imperial)
+static void format_value(char       *out,
+                         size_t      length,
+                         double      canonical,
+                         const char *unit,
+                         bool        imperial,
+                         int         fractional_digits)
 {
     if (!out || length == 0)
         return;
@@ -71,7 +76,7 @@ void display_units_format(char *out, size_t length, double canonical, const char
                             !strcmp(unit, "kph") || !strcmp(unit, "km/h") || !strcmp(unit, "count") ||
                             !strcmp(unit, "s") || !strcmp(unit, "min") || !strcmp(unit, "km") || !strcmp(unit, "Nm")
                         ? 0
-                        : 3;
+                        : fractional_digits;
     if (precision == 0)
         shown = floor(shown + .5);  // Match Android whole-number display rounding.
     snprintf(out, length, "%.*f", precision, shown);
@@ -85,4 +90,24 @@ void display_units_format(char *out, size_t length, double canonical, const char
     }
     if (!strcmp(out, "-0"))
         snprintf(out, length, "0");
+}
+
+void display_units_format(char *out, size_t length, double canonical, const char *unit, bool imperial)
+{
+    format_value(out, length, canonical, unit, imperial, 3);
+}
+
+void display_units_format_reading(char       *out,
+                                  size_t      length,
+                                  double      canonical,
+                                  const char *unit,
+                                  bool        imperial,
+                                  bool        module_voltage)
+{
+    int digits = 3;
+    if (module_voltage || (unit && (!strcmp(unit, "%") || !strcmp(unit, "kPa") || !strcmp(unit, "deg"))))
+        digits = 1;
+    else if (unit && (!strcmp(unit, "g/s") || !strcmp(unit, "L/h")))
+        digits = 2;
+    format_value(out, length, canonical, unit, imperial, digits);
 }

@@ -60,7 +60,7 @@ internal fun virtualFace(
         val latest = history(id).lastOrNull() ?: return "--"
         if (id == "tcmgear") return gearPositions[latest.value] ?: "--"
         val unit = readingCatalog.first { it.id == id }.unit
-        return MeasurementUnits.displayValue(latest.value.toString(), unit, units)
+        return MeasurementUnits.displayReading(latest.value.toString(), unit, units, id)
     }
     fun fraction(id: String, sample: VirtualSample): Float {
         val metric = readingCatalog.first { it.id == id }

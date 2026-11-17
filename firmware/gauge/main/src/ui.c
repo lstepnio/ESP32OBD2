@@ -1040,7 +1040,7 @@ static void format_reading(char out[32], const ui_metric_t *metric, bool availab
         snprintf(out, 32, "%s", gear ? gear : "?");
     }
     else
-        display_units_format(out, 32, value, metric->unit, imperial);
+        display_units_format_reading(out, 32, value, metric->unit, imperial, metric->module_voltage);
 }
 static ui_alert_t       visible_alert(ui_t *ui);
 static ui_diagnostics_t visible_diagnostics(const ui_t *ui);

@@ -53,6 +53,7 @@ typedef struct
     uint16_t                    pid;
     uint8_t                     source_index;
     bool                        scoped;
+    bool                        module_voltage;
     uint32_t                    revision;
     const char                 *name;
     const char                 *unit;
