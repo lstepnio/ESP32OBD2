@@ -68,7 +68,7 @@ internal fun virtualFace(
         val latest = history(id).lastOrNull() ?: return "--"
         if (id == "tcmgear") return gearPositions[latest.value] ?: "--"
         val unit = readingCatalog.first { it.id == id }.unit
-        return MeasurementUnits.displayValue(latest.value.toString(), unit, units)
+        return MeasurementUnits.displayReading(latest.value.toString(), unit, units, id)
     }
     val primary = page.pidIds.first()
     val arc = page.pidIds.getOrElse(page.arcMetricIndex) { primary }

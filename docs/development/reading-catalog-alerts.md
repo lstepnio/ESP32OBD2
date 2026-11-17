@@ -224,3 +224,12 @@ Compare captured per-responder support maps with executable definitions using
 modules. The [Hemi-swapped JK audit](../vehicles/jeep/reading-coverage.md) records
 standard gaps, conflicting transfer-case variants and promotion checks. Imported
 definitions or a responding PID do not establish a selectable reading or scale.
+
+### Dashboard reading precision
+
+The gauge and Android dashboard round module voltage (Mode 01 PID 42),
+percentages, kPa pressure, and angles to at most one decimal. Airflow and
+fuel rate use at most two decimals. Convert to the selected units before
+rounding and omit trailing zeros. Oxygen sensor voltage, ratios, and Pa
+pressure keep up to three decimals. The display policy leaves decoded
+values, alert thresholds, and trend samples at their original precision.

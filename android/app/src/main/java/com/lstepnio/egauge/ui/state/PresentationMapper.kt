@@ -28,14 +28,14 @@ fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.M
         page.layout,
         ReadingPreviewUi(
             readingName(reading.id),
-            MeasurementUnits.displayValue(reading.demoValue, reading.unit, system),
+            MeasurementUnits.displayReading(reading.demoValue, reading.unit, system, reading.id),
             MeasurementUnits.label(reading.unit, system),
             PreviewLayout.valueOf(page.layout.name),
             secondaryName = secondary?.let {
                 readingName(it.id)
             },
             secondaryValue = secondary?.let {
-                MeasurementUnits.displayValue(it.demoValue, it.unit, system)
+                MeasurementUnits.displayReading(it.demoValue, it.unit, system, it.id)
             },
             arcMetricIndex = page.arcMetricIndex,
             primaryGear = reading.alertKind == "gear",

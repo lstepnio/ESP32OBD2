@@ -286,13 +286,14 @@ static void page_ui(unsigned index, ui_page_t *out)
         out->metrics[i]          = (ui_metric_t){
             .presentation = reading_presentation_kind(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms),
             .pid          = pid->obd.pid,
-            .scoped       = true,
-            .source_index = pid->source_index,
-            .revision     = g_running_config_record.revision,
-            .name         = pid->name,
-            .unit         = pid->unit,
-            .minimum      = pid->obd.decoder.minimum,
-            .maximum      = pid->obd.decoder.maximum,
+            .module_voltage = pid->service == 1 && pid->obd.pid == 0x42 && !strcmp(pid->unit, "V"),
+            .scoped         = true,
+            .source_index   = pid->source_index,
+            .revision       = g_running_config_record.revision,
+            .name           = pid->name,
+            .unit           = pid->unit,
+            .minimum        = pid->obd.decoder.minimum,
+            .maximum        = pid->obd.decoder.maximum,
             .stale_after_ms =
                 reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, false, false, false)
                     .display_age_ms,
