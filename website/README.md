@@ -245,6 +245,9 @@ face/case diameter from the manufacturer's viewing opening; neither is a mountin
 cutout specification. Direct links to engineering details open the disclosure.
 The optional adapter has one price. Live checkout remains disabled.
 
+The shop pairs the straight-on OLED render with a three-quarter view that shows
+case depth and the connected USB-C cable.
+
 The selected USB-connected hero is a restrained AI-assisted adaptation of the
 actual enclosed Waveshare board. [Hero provenance](hardware/hero-provenance.json)
 records the reference, full prompt and limits. It is product artwork, not a new
