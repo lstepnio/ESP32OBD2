@@ -223,10 +223,11 @@ status here.
 
 ## Public offer
 
-The homepage hero includes a silent, looping 13-second OLED screen simulation. It composites
+The homepage hero includes a silent, looping 12-second OLED screen simulation. It composites
 the published 466 × 466 startup, dual arc, coolant arc and numeric RPM renders
 from `docs/assets/gauge/` into the USB-connected OLED hero artwork. The sample
-readings and cuts are illustrative. Playback starts automatically when allowed. The poster and native controls remain
+readings and cuts are illustrative. Each page uses the same panel mask, scale,
+and camera framing, so only the display changes. Playback starts automatically when allowed. The poster and native controls remain
 available for manual playback with reduced motion or when autoplay is blocked. The website builder fingerprints both media
 files with the other static assets.
 
