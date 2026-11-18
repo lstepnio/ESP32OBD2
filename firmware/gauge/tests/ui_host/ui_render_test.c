@@ -242,6 +242,7 @@ static void presentation_regression(ui_t *ui)
     page.renderer     = UI_RENDERER_TREND;
     page.metric_count = 1;
     double measured   = 1000;
+    ui_set_value(ui, 12, NULL);
     ui_set_value(ui, 12, &measured);
     ui_set_page(ui, &page);
     host_ms += 50;
@@ -250,6 +251,10 @@ static void presentation_regression(ui_t *ui)
     ui->display.trend_recorded_at = xTaskGetTickCount() - pdMS_TO_TICKS(500);
     render_page(ui);
     assert(ui->display.rendered_values[0] == 1000); /* Trend label shares RPM stabilization. */
+    if (ui->trend_history)
+        host_ms += 500;
+    ui_set_value(ui, 12, &measured);
+    render_page(ui);
     assert(fabs(ui->display.trend_samples[TREND_CAPACITY - 1] - 21.75) < .001); /* History is raw 2200 RPM. */
     host_ms += 200;
     render_page(ui);
@@ -1291,6 +1296,7 @@ int main(int argc, char **argv)
     trend_page.renderer           = UI_RENDERER_TREND;
     trend_page.metrics[0].minimum = 0;
     trend_page.metrics[0].maximum = 100;
+    ui_set_value(ui, 12, NULL);
     ui_set_page(ui, &trend_page);
     double trend_value = 50.25;
     for (unsigned i = 0; i < 3; i++)
@@ -1305,6 +1311,18 @@ int main(int argc, char **argv)
     {
         assert(ui->display.trend_points[0].x == 57 * px(144) / 59);
         assert(ui->display.trend_points[2].x == px(144));
+    }
+    if (ui->trend_history)
+    {
+        ui_set_page(ui, &saved);
+        for (unsigned i = 0; i < TREND_CAPACITY; ++i)
+        {
+            tick(501);
+            ui_set_value(ui, 12, &trend_value);
+        }
+        ui_set_page(ui, &trend_page);
+        assert(ui->display.trend_count == TREND_CAPACITY);
+        assert(!lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
     }
     ui_set_value(ui, 12, NULL);
     tick(60);

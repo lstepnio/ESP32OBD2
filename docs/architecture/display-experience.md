@@ -192,3 +192,12 @@ They do not prove radio coexistence or physical comfort. Before rollout, verify
 saved-page migration/readback, cold boot and brightness, first-touch consumption,
 source loss/recovery, all ten pages, mixed gear/arc layouts, and Wi-Fi/BLE memory
 under loaded ECM/TCM polling. Orientation has its own qualification gate.
+
+Trend history follows the reading, not the page. Each configured PID can retain
+60 actual observations, sampled at most twice per second. This gives roughly
+30 seconds at full cadence and a longer span for slower PIDs. Returning to a
+page draws the existing trace immediately, as long as the reading is fresh.
+Source or revision changes, explicit invalid samples, and gaps over 15 seconds
+start a new trace. Stale readings hide the trace until fresh data arrives.
+The fixed ring pool uses about 8 KiB of PSRAM for 32 PIDs. If allocation fails,
+trends still work on the active page using the existing short history.

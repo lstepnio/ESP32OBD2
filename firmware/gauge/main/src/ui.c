@@ -84,6 +84,13 @@ typedef struct
 
 typedef struct
 {
+    float    values[TREND_CAPACITY];
+    uint32_t recorded_at_ms;
+    uint8_t  count, next;
+} ui_trend_history_t;
+
+typedef struct
+{
     uint8_t  severity;
     uint8_t  additional;
     bool     simulated;
@@ -229,6 +236,7 @@ struct _ui_t
     atomic_uint           cycle_pause;
     portMUX_TYPE          sample_lock;
     ui_sample_t           samples[EGAUGE_RUNTIME_PIDS];
+    ui_trend_history_t   *trend_history;
     uint32_t              sample_continuity;
     struct
     {
@@ -250,6 +258,7 @@ struct _ui_t
         uint8_t               *trend_mask;
         uint8_t                trend_count;
         TickType_t             trend_recorded_at;
+        uint32_t               trend_history_at;
     } display;
 };
 
@@ -1063,6 +1072,44 @@ static void update_trend(ui_t *ui)
         lv_line_set_points(ui->widgets.trend, ui->display.trend_points, count);
     }
 }
+static void render_retained_trend(ui_t *ui, const ui_metric_t *metric, const ui_sample_t *sample)
+{
+    float    values[TREND_CAPACITY];
+    unsigned count   = 0;
+    bool     changed = false;
+    portENTER_CRITICAL(&ui->sample_lock);
+    for (unsigned i = 0; i < EGAUGE_RUNTIME_PIDS; ++i)
+    {
+        const ui_sample_t *current = &ui->samples[i];
+        if (!current->used || !current->present || current->source != sample->source || current->pid != sample->pid ||
+            current->continuity != sample->continuity)
+            continue;
+        const ui_trend_history_t *history = &ui->trend_history[i];
+        count                             = history->count;
+        changed                           = !ui->display.rendered_once || count != ui->display.trend_count ||
+                                            history->recorded_at_ms != ui->display.trend_history_at;
+        if (changed)
+        {
+            for (unsigned j = 0; j < count; ++j)
+                values[j] = history->values[(history->next + TREND_CAPACITY - count + j) % TREND_CAPACITY];
+            ui->display.trend_history_at = history->recorded_at_ms;
+        }
+        break;
+    }
+    portEXIT_CRITICAL(&ui->sample_lock);
+    ui->display.trend_count = count;
+    if (changed && count)
+    {
+        double range = bounded_range(metric->minimum, metric->maximum);
+        for (unsigned i = 0; i < count; ++i)
+        {
+            double normalized                                     = (values[i] - metric->minimum) / range;
+            ui->display.trend_samples[TREND_CAPACITY - count + i] = 30 - 30 * fmin(1, fmax(0, normalized));
+        }
+        update_trend(ui);
+    }
+}
+
 static void render_page(ui_t *ui)
 {
     const ui_page_t                *page         = presented_page(ui);
@@ -1214,6 +1261,8 @@ static void render_page(ui_t *ui)
     {
         if (!available[0])
             ui->display.trend_count = 0;
+        else if (!frame && ui->trend_history)
+            render_retained_trend(ui, primary, &samples[0]);
         else if (xTaskGetTickCount() - ui->display.trend_recorded_at >= pdMS_TO_TICKS(500))
         {
             ui->display.trend_recorded_at = xTaskGetTickCount();
@@ -2243,6 +2292,9 @@ ui_t *ui_init(ui_page_t const    *page,
 
     lvgl_port_unlock();
 
+    ui->trend_history =
+        heap_caps_calloc(EGAUGE_RUNTIME_PIDS, sizeof(*ui->trend_history), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
     ESP_LOGI(TAG, "UI initialized successfully");
 
     return ui;
@@ -2296,6 +2348,20 @@ static void set_sample(ui_t         *ui,
     {
         uint32_t continuity =
             slot->used && slot->present && value && isfinite(*value) ? slot->continuity : ++ui->sample_continuity;
+        if (ui->trend_history)
+        {
+            ui_trend_history_t *history = &ui->trend_history[slot - ui->samples];
+            if (!slot->used || slot->continuity != continuity || observed_at_ms - history->recorded_at_ms > 15000U)
+                history->count = history->next = 0;
+            if (value && isfinite(*value) && (!history->count || observed_at_ms - history->recorded_at_ms >= 500U))
+            {
+                history->values[history->next] = (float)*value;
+                history->next                  = (history->next + 1) % TREND_CAPACITY;
+                if (history->count < TREND_CAPACITY)
+                    history->count++;
+                history->recorded_at_ms = observed_at_ms;
+            }
+        }
         *slot = (ui_sample_t){.continuity     = continuity,
                               .used           = true,
                               .source         = source,
