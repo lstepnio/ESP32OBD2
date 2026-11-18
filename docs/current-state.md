@@ -1,8 +1,18 @@
 # Current implementation and evidence
 
-Updated 2026-11-09. This is the current source/device snapshot, not a delivery diary.
+Updated 2026-11-18. This is the current source/device snapshot, not a delivery diary.
 The [backlog](backlog.md) owns next acceptance outcomes; the [roadmap](roadmap.md)
 owns their order. Recheck the active branch, CI and device owner before delivery.
+
+## Consolidated update candidate
+
+App dev.59 and reference firmware dev.88 combine board-reported page capacity,
+RPM redline scales, retained time-spaced trends, readable PID precision, retained
+clock scheduling, stable Auto orientation, brightness-button recovery, code-backed
+warning alerts and independent worker stall reporting. The OLED integration retains
+its existing Quiet Actions, splash and footer presentation. No vehicle actions are
+operated during delivery. Installation identities and saved-state comparisons must
+be recorded before replacing the installed baseline below.
 
 ## Installed baseline
 

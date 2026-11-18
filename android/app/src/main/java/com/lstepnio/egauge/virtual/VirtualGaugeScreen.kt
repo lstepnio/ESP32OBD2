@@ -183,7 +183,9 @@ private suspend fun pollVirtualLink(
                         val previous = link.readings[pid].orEmpty()
                         val recent = if (previous.lastOrNull()?.fresh(pid, observed) == true) {
                             previous.filter { observed - it.observedAtMs <= TREND_WINDOW_MS }
-                        } else emptyList()
+                        } else {
+                            emptyList()
+                        }
                         link = link.copy(readings = link.readings + (pid to (recent.takeLast(59) + VirtualSample(value, observed))))
                         publish(link)
                         lastSample = observed
