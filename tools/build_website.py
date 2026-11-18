@@ -38,7 +38,7 @@ class SiteHTML(HTMLParser):
             if identifier in self.ids:
                 raise ValueError(f"Duplicate website id: {identifier}")
             self.ids.add(identifier)
-        for key in ("href", "src", "action", "data-lcd-src", "data-oled-src"):
+        for key in ("href", "src", "poster", "action", "data-lcd-src", "data-oled-src"):
             if attrs.get(key):
                 self.links.append(attrs[key])
         for candidate in attrs.get("srcset", "").split(","):
@@ -283,7 +283,14 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     for board in ("lcd", "oled", "lcd-back"):
         asset = f"hardware/{board}.webp"
         files[asset] = (source / asset).read_bytes()
-    files["hardware/oled-usb-hero.webp"] = (source / "hardware/oled-usb-hero.webp").read_bytes()
+    for name in (
+        "oled-studio-front.webp",
+        "oled-studio-angle.webp",
+        "egauge-oled-preview.mp4",
+        "egauge-oled-poster.jpg",
+    ):
+        asset = f"hardware/{name}"
+        files[asset] = (source / asset).read_bytes()
     files["social-preview.png"] = (source / "social-preview.png").read_bytes()
     for asset in sorted((source / "recovery").iterdir()):
         if asset.suffix != ".html" and asset.name != "package.json":
