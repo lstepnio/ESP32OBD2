@@ -1,5 +1,8 @@
 #include "sunset_runtime.h"
 
+#include <sys/time.h>
+#include <time.h>
+
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "nvs.h"
@@ -72,10 +75,25 @@ void sunset_runtime_init(void)
     publish();
 }
 
+void sunset_runtime_restore_clock(uint32_t board_utc, uint64_t now_ms)
+{
+    if (sunset_utc_valid(board_utc))
+    {
+        sunset_runtime_sync(board_utc, now_ms);
+        return;
+    }
+    time_t retained = time(NULL);
+    if (retained >= SUNSET_MIN_UTC && retained <= SUNSET_MAX_UTC)
+        sunset_runtime_sync((uint32_t)retained, now_ms);
+}
+
 void sunset_runtime_sync(uint32_t utc, uint64_t now_ms)
 {
     if (!sunset_utc_valid(utc))
         return;
+    const struct timeval clock = {.tv_sec = utc};
+    if (settimeofday(&clock, NULL) != 0)
+        ESP_LOGW(TAG, "Unable to set system clock; using monotonic sunset time");
     anchor_utc    = utc;
     anchor_ms     = now_ms;
     next_check_ms = 0;
