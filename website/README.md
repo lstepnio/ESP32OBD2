@@ -223,14 +223,6 @@ status here.
 
 ## Public offer
 
-The homepage hero includes a silent, looping 12-second OLED screen simulation. It composites
-the published 466 × 466 dual arc, coolant arc and numeric RPM renders
-from `docs/assets/gauge/` into the matching three-quarter studio artwork. The sample
-readings and cuts are illustrative. Each page uses the same panel mask, scale,
-and camera framing, so only the display changes. Playback starts automatically when allowed. The poster and native controls remain
-available for manual playback with reduced motion or when autoplay is blocked. The website builder fingerprints both media
-files with the other static assets.
-
 The shop leads with the enclosed OLED. The hero's secondary link goes directly to
 the free LCD DIY section, with vendor sourcing, free manual flashing and source
 access. Keep the free offer scoped to LCD firmware; hardware, assisted browser
@@ -240,17 +232,17 @@ material has a project-wide open-source license before one is selected.
 Product cards keep price, tax/shipping, OLED lead time and adapter exclusion close
 to the request controls. Optional paid LCD setup has two visible price links below
 the free path: a preflashed board or browser flashing with limited setup support.
-Comparison and exact dimensions/CAD sit behind the hardware disclosure.
+Comparison and exact dimensions/CAD are visible by default in a collapsible section.
 Distinguish outer
 face/case diameter from the manufacturer's viewing opening; neither is a mounting
 cutout specification. Direct links to engineering details open the disclosure.
 The optional adapter has one price. Live checkout remains disabled.
 
-The shop uses matching front and three-quarter studio renders. The angled render
-shows the case wall, buttons and USB-C connection, and provides the backdrop for
-the hero video. [Artwork provenance](hardware/hero-provenance.json) records the
-Waveshare references and firmware screen inputs. The interactive gallery continues
-to use the existing production-rendered screen assets.
+The selected USB-connected hero is a restrained AI-assisted adaptation of the
+actual enclosed Waveshare board. [Hero provenance](hardware/hero-provenance.json)
+records the reference, full prompt and limits. It is product artwork, not a new
+production screen capture or hardware qualification. The interactive gallery
+continues to use the existing production-rendered screen assets.
 
 The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
 free LCD firmware and licensed OLED bundle. The shop comparison distinguishes
@@ -258,7 +250,7 @@ installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
 and [enclosed AMOLED photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg).
-The shop shows one large product view at a time. Both products share a fixed image ratio, a keyboard-operable view selector, an offer and its primary action. On wide screens the offers align side by side; on phones each product stays together. The comparison uses
+The shop pairs a face-on and angled view for each board. The comparison uses
 the nominal panel diameters, 1.28″ and 1.75″, for relative scale. Both panels use
 matched example readings rendered by their own production UI profiles. The
 OLED entries in [capture provenance](../docs/assets/gauge/capture-provenance.json)

@@ -1,10 +1,4 @@
 'use strict';
-const heroVideo = document.querySelector('.oled-hero-video');
-if (heroVideo && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-  heroVideo.play().catch(() => {
-    // The poster and controls remain available when autoplay is blocked.
-  });
-}
 const screens = /* EGAUGE_SCREEN_DATA */ {};
 const screenImage = document.querySelector('#screen-image');
 document.querySelectorAll('[data-screen]').forEach(button => {
