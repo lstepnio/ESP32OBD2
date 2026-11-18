@@ -283,7 +283,12 @@ def build(output: Path, downloads: Path | None = None, metadata_only=False):
     for board in ("lcd", "oled", "lcd-back"):
         asset = f"hardware/{board}.webp"
         files[asset] = (source / asset).read_bytes()
-    for name in ("oled-usb-hero.webp", "egauge-oled-preview.mp4", "egauge-oled-poster.jpg"):
+    for name in (
+        "oled-studio-front.webp",
+        "oled-studio-angle.webp",
+        "egauge-oled-preview.mp4",
+        "egauge-oled-poster.jpg",
+    ):
         asset = f"hardware/{name}"
         files[asset] = (source / asset).read_bytes()
     files["social-preview.png"] = (source / "social-preview.png").read_bytes()

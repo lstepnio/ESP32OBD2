@@ -224,8 +224,8 @@ status here.
 ## Public offer
 
 The homepage hero includes a silent, looping 12-second OLED screen simulation. It composites
-the published 466 × 466 startup, dual arc, coolant arc and numeric RPM renders
-from `docs/assets/gauge/` into the USB-connected OLED hero artwork. The sample
+the published 466 × 466 dual arc, coolant arc and numeric RPM renders
+from `docs/assets/gauge/` into the matching three-quarter studio artwork. The sample
 readings and cuts are illustrative. Each page uses the same panel mask, scale,
 and camera framing, so only the display changes. Playback starts automatically when allowed. The poster and native controls remain
 available for manual playback with reduced motion or when autoplay is blocked. The website builder fingerprints both media
@@ -246,14 +246,11 @@ face/case diameter from the manufacturer's viewing opening; neither is a mountin
 cutout specification. Direct links to engineering details open the disclosure.
 The optional adapter has one price. Live checkout remains disabled.
 
-The shop pairs the straight-on OLED render with a three-quarter view that shows
-case depth and the connected USB-C cable.
-
-The selected USB-connected hero is a restrained AI-assisted adaptation of the
-actual enclosed Waveshare board. [Hero provenance](hardware/hero-provenance.json)
-records the reference, full prompt and limits. It is product artwork, not a new
-production screen capture or hardware qualification. The interactive gallery
-continues to use the existing production-rendered screen assets.
+The shop uses matching front and three-quarter studio renders. The angled render
+shows the case wall, buttons and USB-C connection, and provides the backdrop for
+the hero video. [Artwork provenance](hardware/hero-provenance.json) records the
+Waveshare references and firmware screen inputs. The interactive gallery continues
+to use the existing production-rendered screen assets.
 
 The [product roadmap](../docs/roadmap.md#distribution-and-custom-work) defines the
 free LCD firmware and licensed OLED bundle. The shop comparison distinguishes
