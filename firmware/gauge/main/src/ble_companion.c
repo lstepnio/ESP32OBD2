@@ -250,6 +250,7 @@ static void owner_save_worker(void *arg)
  * even for custom board labels and feature combinations. */
 #define CAPABILITY_JSON(fields)                                                                                        \
     (sizeof(fields ",\"ov\":1,\"sb\":1,\"rl\":1}") <= 256U ? fields ",\"ov\":1,\"sb\":1,\"rl\":1}"                     \
+     : sizeof(fields ",\"ov\":1,\"sb\":1}") <= 256U        ? fields ",\"ov\":1,\"sb\":1}"                              \
      : sizeof(fields ",\"ov\":1}") <= 256U                 ? fields ",\"ov\":1}"                                       \
                                                            : fields "}")
 static const char *const capabilities          = CAPABILITY_JSON(LEGACY_CAPABILITY_BASE WIFI_BULK_CAPABILITY);
