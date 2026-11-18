@@ -79,6 +79,35 @@ class UnifiedDashboardUiTest {
         capture("oled-200-percent")
     }
 
+    @Test fun unsupportedRedlineIsHiddenButAnExistingValueCanBeRemoved() {
+        val draft = mutableStateOf(GaugePageDraft("rpm", "RPM", GaugeLayout.Arc, listOf("rpm")))
+        compose.setContent {
+            EGaugeTheme {
+                DashboardEditorScreen(
+                    state().copy(pages = listOf(pageUi(draft.value))),
+                    0,
+                    {},
+                    {},
+                    actions().copy(setRpmRedline = { draft.value = draft.value.copy(rpmRedline = it) })
+                )
+            }
+        }
+        compose.onNodeWithText("RPM redline").assertDoesNotExist()
+        compose.runOnIdle { draft.value = draft.value.copy(rpmRedline = 5800) }
+        compose.onNodeWithText("5800 RPM · Tap to remove").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(null, draft.value.rpmRedline) }
+        compose.onNodeWithText("RPM redline").assertDoesNotExist()
+    }
+
+    @Test fun phoneOnlyRedlineDoesNotRequireFirmwareCapability() {
+        val draft = GaugePageDraft("rpm", "RPM", GaugeLayout.Arc, listOf("rpm"))
+        compose.setContent {
+            EGaugeTheme { DashboardEditorScreen(state().copy(pages = listOf(pageUi(draft))), 0, {}, {}, actions(), phoneOnly = true) }
+        }
+        compose.onNodeWithText("RPM redline").performScrollTo().performClick()
+        compose.onNode(hasSetTextAction()).assertIsDisplayed()
+    }
+
     @Test fun rpmRingRedlineIsOptionalAndValidatesBeforeSaving() {
         val page = GaugePageDraft("page.rpm", "RPM", GaugeLayout.Arc, listOf("rpm"))
         val editor = mutableStateOf(page)
@@ -88,7 +117,7 @@ class UnifiedDashboardUiTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, scale.value)) {
                 EGaugeTheme {
                     DashboardEditorScreen(
-                        state().copy(pages = listOf(pageUi(editor.value))),
+                        state().copy(pages = listOf(pageUi(editor.value)), rpmRedlineSupported = true),
                         0,
                         {},
                         {},

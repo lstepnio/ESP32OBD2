@@ -233,3 +233,8 @@ They do not prove radio coexistence or physical comfort. Before rollout, verify
 saved-page migration/readback, cold boot and brightness, first-touch consumption,
 source loss/recovery, full board capacity, mixed gear/arc layouts, and Wi-Fi/BLE memory
 under loaded ECM/TCM polling. Orientation has its own qualification gate.
+
+Physical RPM-redline editing requires the advertised `rl:1` capability. An unsupported
+saved value can be removed from the draft without sending it; the phone-only virtual
+gauge remains independently editable. A firmware update is not suggested when the
+board intentionally omits this optional capability to retain its existing wire budget.

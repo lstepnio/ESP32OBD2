@@ -106,4 +106,40 @@ class AlertVisibilityTest {
         val operation = JSONObject().put("diagnostics", raw.context.getJSONObject("diagnostics"))
         assertFalse(AlertVisibility.context(operation, rules).toString().contains("P0700"))
     }
+
+    @Test fun liveCodesRecoverADeferredWarningWithoutRewritingEntryEvidence() {
+        val raw = entry(JSONObject(), key = 33).copy(current = true)
+        val original = raw.context.toString()
+        assertTrue(AlertVisibility.awaitingCodes(raw))
+        assertNull(AlertVisibility.project(raw, rules))
+        val live = context("P0730").getJSONObject("diagnostics")
+        val visible = AlertVisibility.project(raw, rules, live)!!
+        assertTrue(visible.context.toString().contains("P0730"))
+        assertEquals("current", visible.context.getString("diagnosticEvidence"))
+        assertFalse(AlertVisibility.awaitingCodes(raw, live))
+        assertEquals(original, raw.context.toString())
+        assertNull(AlertVisibility.project(raw.copy(current = false), rules, live))
+        assertNull(AlertVisibility.project(raw, rules, context("P0700").getJSONObject("diagnostics")))
+        assertNull(AlertVisibility.project(raw, rules, JSONObject().put("ECM", live.getJSONObject("TCM"))))
+        live.getJSONObject("TCM").getJSONArray("categories").getJSONObject(0).put("fresh", false)
+        assertNull(AlertVisibility.project(raw, rules, live))
+    }
+
+    @Test fun pendingCodeNoticesAreBoundedAndFenceVehicleGaugeAndTransition() {
+        val pending = PendingCodeNotices(2)
+        val first = event(33)
+        pending.add("a", "one", first)
+        assertTrue(pending.contains("a", "one", first))
+        assertFalse(pending.contains("b", "one", first))
+        assertFalse(pending.contains("a", "two", first))
+        assertFalse(pending.contains("a", "one", first.copy(boot = 2)))
+        pending.add("a", "one", first.copy(sequence = 2))
+        pending.add("a", "two", first.copy(sequence = 3))
+        assertFalse(pending.contains("a", "one", first))
+        pending.clearGauge("one")
+        assertFalse(pending.contains("a", "one", first.copy(sequence = 2)))
+        assertTrue(pending.contains("a", "two", first.copy(sequence = 3)))
+        pending.remove("a", "two", first.copy(sequence = 3))
+        assertFalse(pending.contains("a", "two", first.copy(sequence = 3)))
+    }
 }

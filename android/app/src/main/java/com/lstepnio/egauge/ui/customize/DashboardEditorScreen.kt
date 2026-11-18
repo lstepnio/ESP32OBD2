@@ -59,6 +59,7 @@ fun DashboardEditorScreen(
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReading by rememberSaveable { mutableStateOf<String?>(null) }
     var alertReturn by rememberSaveable { mutableIntStateOf(0) }
+    val canEditRedline = phoneOnly || state.rpmRedlineSupported
     val current = state.pages.getOrNull(state.editingPage) ?: state.pages.firstOrNull()
     fun editAlert(id: String) {
         alertReading = id
@@ -172,13 +173,13 @@ fun DashboardEditorScreen(
                                 }
                             }
                             val ringReading = if (current.arcMetricIndex == 0) current.readingId else current.secondaryId
-                            if (current.layout in setOf(GaugeLayout.Arc, GaugeLayout.DualArc) && ringReading == "rpm") {
+                            if (current.layout in setOf(GaugeLayout.Arc, GaugeLayout.DualArc) && ringReading == "rpm" && (canEditRedline || current.rpmRedline != null)) {
                                 HorizontalDivider(Modifier.padding(horizontal = 18.dp))
                                 EditorRow(
                                     "RPM redline",
-                                    current.rpmRedline?.let { "$it RPM" } ?: "Unset · 8,000 RPM scale",
+                                    if (!canEditRedline) "${current.rpmRedline} RPM · Tap to remove" else current.rpmRedline?.let { "$it RPM" } ?: "Unset · 8,000 RPM scale",
                                     state.editingEnabled
-                                ) { redlineOpen = true }
+                                ) { if (canEditRedline) redlineOpen = true else actions.setRpmRedline(null) }
                             }
                             current.secondaryId?.let { id ->
                                 HorizontalDivider(Modifier.padding(horizontal = 18.dp))
@@ -252,7 +253,7 @@ fun DashboardEditorScreen(
             }
         )
     }
-    if (redlineOpen && current != null) {
+    if (redlineOpen && current != null && canEditRedline) {
         var input by rememberSaveable(current.id, current.rpmRedline) {
             mutableStateOf(current.rpmRedline?.toString().orEmpty())
         }

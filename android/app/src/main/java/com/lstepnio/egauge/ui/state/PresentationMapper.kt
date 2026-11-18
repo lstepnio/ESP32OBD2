@@ -469,6 +469,7 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
             },
             editingIssue = pageEditError,
             pageLimit = editorPageLimit,
+            rpmRedlineSupported = capabilities?.rpmRedlineSupported == true,
             reviewAlerts = transmittedDraft.alerts.filter { it.enabled }.map { alertUi(it, system) },
             idleCoolantWarning = transmittedDraft.actions.any { it.type == PageActionType.VehicleActions } && idleCoolantLimitC(transmittedDraft.alerts) == null,
             reviewNotice = if (transmittedDraft.diagnosticFilters != sentDraft?.diagnosticFilters.orEmpty()) {

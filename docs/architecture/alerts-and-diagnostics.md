@@ -640,3 +640,10 @@ never resolution or code clearing. Rules list configured entries first, includin
 retained disabled rules. Add alert selects an unconfigured reading before the validated
 editor. Customize retains separate Review and send; Car retains guarded Save to gauge
 or explicit Save on phone and review when necessary. Both preserve admission and readback.
+
+Live lamp visibility uses fresh diagnostic evidence only for the same active vehicle,
+gauge, configuration revision and boot. The UI projection labels this evidence as
+current; the stored entry snapshot remains immutable. A live background transition
+waiting for codes can notify once when an unfiltered code arrives. Deferred entries
+are bounded in memory and retired with the gauge session. Filter-policy reveals and
+historical replay never create new notifications.

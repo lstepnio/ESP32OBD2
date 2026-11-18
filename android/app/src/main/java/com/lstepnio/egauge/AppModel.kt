@@ -54,11 +54,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var alertListRequest by mutableStateOf<String?>(null)
     fun diagnosticFiltersForVehicle(vehicle: String): List<DiagnosticCodeFilter> = profileCollection.profiles.firstOrNull { it.id == vehicle }?.dashboardDraft()?.diagnosticFilters.orEmpty()
-    fun visibleAlertEntry(entry: StoredAlert): StoredAlert? = AlertVisibility.project(entry, diagnosticFiltersForVehicle(entry.vehicle))
+    private fun liveAlertDiagnostics(entry: StoredAlert): org.json.JSONObject? = if (isAlertCurrent(entry)) org.json.JSONObject(diagnosticContext()) else null
+    fun visibleAlertEntry(entry: StoredAlert): StoredAlert? = AlertVisibility.project(entry, diagnosticFiltersForVehicle(entry.vehicle), liveAlertDiagnostics(entry))
     private val visibleHistory by derivedStateOf {
         val vehicle = profileCollection.activeId
-        val rules = diagnosticFiltersForVehicle(vehicle)
-        alertHistory.filter { it.vehicle == vehicle }.mapNotNull { AlertVisibility.project(it, rules) }
+        alertHistory.filter { it.vehicle == vehicle }.mapNotNull(::visibleAlertEntry)
     }
     fun visibleAlertHistory(): List<StoredAlert> = visibleHistory
     private var alertScope = ""
@@ -80,6 +80,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 alertPreferences.edit().putBoolean("enabled", value).commit()
             }
             if (success) {
+                if (!value) alertNotifications.discardPendingCodes()
                 phoneAlertsEnabled = value
                 saved()
             } else {
@@ -622,6 +623,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         0
                     lastAlertBoot = batch.boot
                 }
+                lastAlertChecked = android.os.SystemClock.elapsedRealtime()
                 val live = cursor.boot == batch.boot && cursor.sequence > 0 && !batch.gap
                 val diagnostics = diagnosticContext()
                 var storageFailed = false
@@ -679,7 +681,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             connectionForeground,
                             visible == null && (raw != null || event.key in 32..33),
                             displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
-                            visible?.let { recordedFaultCodes(it.context) }.orEmpty()
+                            visible?.let { recordedFaultCodes(it.context) }.orEmpty(),
+                            pendingEvidence = raw != null && AlertVisibility.awaitingCodes(raw, liveAlertDiagnostics(raw))
                         )
                     }
                 }
@@ -690,11 +693,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 if (phoneAlertsEnabled && !storageFailed) {
+                    alertNotifications.retryPendingCodes(
+                        alertHistory,
+                        ::visibleAlertEntry,
+                        ::isAlertCurrent,
+                        { AlertVisibility.awaitingCodes(it, liveAlertDiagnostics(it)) },
+                        connectionForeground,
+                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
+                    )
                     alertNotifications.reconcile(
                         vehicle,
                         alertHistory.filter { it.vehicle == vehicle },
                         filterRules,
-                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
+                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
+                        project = ::visibleAlertEntry
                     )
                 }
                 val capture = if (storageFailed) {
@@ -4084,7 +4096,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     policies.forEach { (vehicle, rules) ->
                         try {
                             val raw = withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle) }
-                            alertNotifications.reconcile(vehicle, raw, rules, presentationPreferences.measurementSystem)
+                            alertNotifications.reconcile(vehicle, raw, rules, presentationPreferences.measurementSystem, project = ::visibleAlertEntry)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {

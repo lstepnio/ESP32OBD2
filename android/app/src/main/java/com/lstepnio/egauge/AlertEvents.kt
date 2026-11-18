@@ -148,3 +148,24 @@ fun shouldNotifyAlert(event: AlertEvent, live: Boolean, foreground: Boolean): Bo
     !event.acknowledged &&
     !event.snoozed &&
     event.severity >= AlertSeverity.Warning && event.kind in 1..2
+
+/** Bounded, in-memory deferrals are scoped to a live vehicle/gauge transition. */
+internal class PendingCodeNotices(private val limit: Int = 256) {
+    private data class Key(val vehicle: String, val gauge: String, val transition: String)
+    private val pending = linkedSetOf<Key>()
+    private fun key(vehicle: String, gauge: String, event: AlertEvent) = Key(vehicle, gauge, event.transitionId(gauge))
+    fun add(vehicle: String, gauge: String, event: AlertEvent) {
+        pending.add(key(vehicle, gauge, event))
+        while (pending.size > limit) pending.remove(pending.first())
+    }
+    fun contains(vehicle: String, gauge: String, event: AlertEvent) = key(vehicle, gauge, event) in pending
+    fun remove(vehicle: String, gauge: String, event: AlertEvent) {
+        pending.remove(key(vehicle, gauge, event))
+    }
+    fun clearGauge(gauge: String) {
+        pending.removeAll { it.gauge == gauge }
+    }
+    fun clear() {
+        pending.clear()
+    }
+}

@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 
 class AlertNotifications(private val context: Context) {
+    private val pendingCodes = PendingCodeNotices()
     private val delivered = linkedMapOf<String, Boolean>() // true: filtered, false: notified
     private val postedIds = mutableMapOf<String, MutableSet<Int>>()
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -48,10 +49,17 @@ class AlertNotifications(private val context: Context) {
         filtered: Boolean = false,
         system: MeasurementSystem = MeasurementSystem.Metric,
         codes: List<com.lstepnio.egauge.ui.state.CarFaultUi> = emptyList(),
-        reconcileOnly: Boolean = false
+        reconcileOnly: Boolean = false,
+        pendingEvidence: Boolean = false
     ) {
         val id = event.id(gauge).hashCode()
         if (filtered) {
+            if (pendingEvidence && shouldNotifyAlert(event, live, foreground) && event.transitionId(gauge) !in delivered) {
+                manager.cancel(id)
+                pendingCodes.add(vehicle, gauge, event)
+                return
+            }
+            pendingCodes.remove(vehicle, gauge, event)
             val transition = event.transitionId(gauge)
             if (delivered[transition] == true) return
             manager.cancel(id)
@@ -59,6 +67,7 @@ class AlertNotifications(private val context: Context) {
             while (delivered.size > 256)delivered.remove(delivered.keys.first())
             return
         }
+        pendingCodes.remove(vehicle, gauge, event)
         if (event.lifecycle != AlertLifecycle.Active || event.acknowledged || event.snoozed ||
             event.unavailable
         ) {
@@ -135,13 +144,14 @@ class AlertNotifications(private val context: Context) {
         vehicle: String,
         entries: List<StoredAlert>,
         rules: List<DiagnosticCodeFilter>,
-        system: MeasurementSystem = MeasurementSystem.Metric
+        system: MeasurementSystem = MeasurementSystem.Metric,
+        project: (StoredAlert) -> StoredAlert? = { AlertVisibility.project(it, rules) }
     ) {
         manager.activeNotifications.filter {
             it.notification.extras.getString("egauge_vehicle") == vehicle
         }.forEach { posted ->
             val entry = entries.firstOrNull { it.vehicle == vehicle && it.event.id(it.gauge).hashCode() == posted.id }
-            val projected = entry?.let { AlertVisibility.project(it, rules) }
+            val projected = entry?.let(project)
             if (projected == null) {
                 manager.cancel(posted.id)
                 posted.notification.extras.getString("egauge_transition")?.let { delivered[it] = true }
@@ -160,7 +170,37 @@ class AlertNotifications(private val context: Context) {
         }
         while (delivered.size > 256) delivered.remove(delivered.keys.first())
     }
+
+    /** Retry only live transitions deferred for missing evidence, never historical replay or policy reveals. */
+    fun retryPendingCodes(
+        entries: List<StoredAlert>,
+        project: (StoredAlert) -> StoredAlert?,
+        current: (StoredAlert) -> Boolean,
+        awaitingCodes: (StoredAlert) -> Boolean,
+        foreground: Boolean,
+        system: MeasurementSystem
+    ) {
+        entries.filter { pendingCodes.contains(it.vehicle, it.gauge, it.event) }.forEach { raw ->
+            if (!current(raw)) {
+                pendingCodes.remove(raw.vehicle, raw.gauge, raw.event)
+                return@forEach
+            }
+            val visible = project(raw)
+            show(
+                visible?.event ?: raw.event, raw.vehicle, raw.gauge, true, foreground,
+                filtered = visible == null, system = system,
+                codes = visible?.let { com.lstepnio.egauge.ui.state.recordedFaultCodes(it.context) }.orEmpty(),
+                pendingEvidence = visible == null && awaitingCodes(raw)
+            )
+        }
+    }
+
+    fun discardPendingCodes() {
+        pendingCodes.clear()
+    }
+
     fun cancelGauge(gauge: String) {
+        pendingCodes.clearGauge(gauge)
         val ids =
             postedIds.remove(gauge).orEmpty() +
                 manager.activeNotifications.filter {

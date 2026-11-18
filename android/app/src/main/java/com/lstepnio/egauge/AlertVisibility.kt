@@ -6,10 +6,24 @@ import org.json.JSONObject
 
 /** Saved vehicle intent projects presentation only. Repository evidence is never mutated. */
 object AlertVisibility {
-    fun project(entry: StoredAlert, rules: List<DiagnosticCodeFilter>): StoredAlert? {
+    fun project(entry: StoredAlert, rules: List<DiagnosticCodeFilter>, liveDiagnostics: JSONObject? = null): StoredAlert? {
         DiagnosticCodeFilters.validate(rules)
-        val event = transition(entry.event, entry.context, rules) ?: return null
-        return entry.copy(event = event, context = context(entry.context, rules))
+        val evidence = evidence(entry, liveDiagnostics)
+        val event = transition(entry.event, evidence, rules) ?: return null
+        return entry.copy(event = event, context = context(evidence, rules))
+    }
+
+    private fun evidence(entry: StoredAlert, liveDiagnostics: JSONObject?): JSONObject = if (entry.current && entry.event.key in 32..33 && liveDiagnostics != null) {
+        JSONObject(entry.context.toString()).put("diagnostics", JSONObject(liveDiagnostics.toString()))
+            .put("diagnosticEvidence", "current")
+    } else {
+        entry.context
+    }
+
+    fun awaitingCodes(entry: StoredAlert, liveDiagnostics: JSONObject? = null): Boolean {
+        val source = controller(entry.event) ?: return false
+        return entry.event.key in 32..33 &&
+            !hasFreshVisibleCode(evidence(entry, liveDiagnostics).optJSONObject("diagnostics")?.optJSONObject(source), source, emptyList())
     }
 
     fun transition(event: AlertEvent, recorded: JSONObject, rules: List<DiagnosticCodeFilter>): AlertEvent? {

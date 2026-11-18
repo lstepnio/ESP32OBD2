@@ -96,7 +96,8 @@ data class CustomizeUiState(
     val reviewAlerts: List<AlertUi>? = null,
     val reviewNotice: String? = null,
     val idleCoolantWarning: Boolean = false,
-    val pageLimit: Int = MAX_DASHBOARD_PAGES
+    val pageLimit: Int = MAX_DASHBOARD_PAGES,
+    val rpmRedlineSupported: Boolean = false
 )
 
 @Immutable
