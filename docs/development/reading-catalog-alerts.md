@@ -88,15 +88,14 @@ defines the additive marker.
   not invalidate healthy-source samples. A single primary transport can carry both
   kinds of requests without adding a child in Expert.
 - Only definitions referenced by pages or alerts are transmitted/polled. Limits
-  remain 32 different active readings, 32 alerts, ten pages and 64 KiB (subject to negotiated `mp` capacity). Asking for
+  remain 32 different active readings, 32 alerts, up to twelve pages and 64 KiB (subject to negotiated `mp` capacity). Asking for
   short intervals does not guarantee that rate on a slow or missing adapter.
 - Configuration and alerts retain canonical metric values. Imperial display and
   editing convert temperature, speed/distance, pressure, flow and torque. Saving an
   unchanged existing threshold preserves its canonical value. The gauge keeps
   doubles through its bounded UI queue/cache; fractional units render with up to
   three decimals. Familiar temperature/speed/RPM pages retain whole-number display.
-  Arc/Bar/Trend normalize using the full canonical range, including negative values
-  and sub-unit ranges.
+  Arc and Bar use the canonical range for ordinary readings. The [RPM display scale and trend window](../architecture/display-experience.md#rpm-ring-and-trend-history) use presentation-only bounds.
 
 ## Display and polling classes
 
@@ -225,3 +224,12 @@ Compare captured per-responder support maps with executable definitions using
 modules. The [Hemi-swapped JK audit](../vehicles/jeep/reading-coverage.md) records
 standard gaps, conflicting transfer-case variants and promotion checks. Imported
 definitions or a responding PID do not establish a selectable reading or scale.
+
+### Dashboard reading precision
+
+The gauge and Android dashboard round module voltage (Mode 01 PID 42),
+percentages, kPa pressure, and angles to at most one decimal. Airflow and
+fuel rate use at most two decimals. Convert to the selected units before
+rounding and omit trailing zeros. Oxygen sensor voltage, ratios, and Pa
+pressure keep up to three decimals. The display policy leaves decoded
+values, alert thresholds, and trend samples at their original precision.

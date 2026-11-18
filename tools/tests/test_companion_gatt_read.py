@@ -1,3 +1,4 @@
+import json
 import pathlib
 import re
 import subprocess
@@ -53,3 +54,50 @@ class CompanionGattReadTest(unittest.TestCase):
         self.assertIn("SUNSET_BRIGHTNESS_STATUS_MODE", selectors)
         values = [int(named_modes.get(selector, selector)) for selector in selectors]
         self.assertEqual(len(values), len(set(values)), list(zip(selectors, values)))
+
+    def test_long_capabilities_preserve_existing_sunset_support(self):
+        source = (ROOT / "firmware/gauge/main/src/ble_companion.c").read_text()
+        macro = source[
+            source.index("#define CAPABILITY_JSON(fields)") : source.index(
+                "static const char *const capabilities "
+            )
+        ]
+        base = {
+            "protocolMajor": 0,
+            "board": "EGS-AMOLED-175B",
+            "maxAdapterLinks": 1,
+            "configWrite": False,
+            "cfg": 7,
+            "ad": 1,
+            "va": 1,
+            "ota": False,
+            "hw": 1,
+            "sc": 1,
+            "ds": 3,
+            "sp": 1,
+            "da": 1,
+            "vc": 1,
+            "bm": 1,
+            "mp": 12,
+            "dx": 1,
+            "bt": 1,
+            "wifiBulk": "experimental-softap-aead-v2",
+            "ao": 1,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp)
+            literal = json.dumps(json.dumps(base, separators=(",", ":"))[:-1])
+            (path / "cap.c").write_text(
+                "#include <stdio.h>\n"
+                + macro
+                + "int main(void) { puts(CAPABILITY_JSON("
+                + literal
+                + ")); return 0; }\n"
+            )
+            subprocess.run(["cc", str(path / "cap.c"), "-o", str(path / "cap")], check=True)
+            result = subprocess.check_output([str(path / "cap")], text=True).strip()
+        self.assertLessEqual(len(result.encode()), 255)
+        parsed = json.loads(result)
+        self.assertEqual(parsed["sb"], 1)
+        self.assertEqual(parsed["ov"], 1)
+        self.assertEqual(parsed["ao"], 1)

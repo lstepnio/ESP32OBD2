@@ -8,30 +8,30 @@ from installed and physically qualified behavior.
 [Gauge presentation rules](../development/reading-catalog-alerts.md#gauge-presentation-smoothing)
 own bounded motion, RPM text stabilization and immediate raw-data invalidation.
 
-## Ten saved pages
+## Board page capacity
 
-The App can save and reorder up to ten pages per gauge. Firmware compiles at most
-ten pages and 32 distinct active readings, still within the 64 KiB document limit.
-Local profile schema 18 adds the selected arc index, migrates schema 17 with an
-index-zero default, and retains newer/malformed records rather than overwriting
-them. Gauge association schema remains 2. More pages reuse the same rendering objects and sample cache; they do not each
-allocate a screen or duplicate polling. More distinct readings can reduce achieved
-refresh rates because OBD transport capacity is finite. Page visibility and the next
-cycling page influence scheduling, not cache identity or observation timestamps.
+The reference **S3-LCD-1.28 v1** accepts up to five new saved dashboard pages.
+The **S3-OLED-1.75 v1** target sets the board build attribute to twelve.
+Firmware advertises that value as `mp` and validates it before accepting a new
+document. The App uses the negotiated capacity in the editor and send checks.
+Offline drafts can contain up to twelve pages. Legacy document gauges without
+`mp` retain the eight-page fallback and earlier configurations keep their
+existing limits. Update the App before using OLED firmware that advertises
+`mp:12`. Older Apps accept values up to ten.
 
-The negotiated `mp` limit controls deployment. Legacy document gauges default to
-eight; older fallback configurations retain their existing limits. Editing ten
-pages offline is allowed, but deployment to an older gauge is rejected before
-transfer. Never silently drop pages. Reading and action screens keep the lower
-edge free of page markers. Swipe navigation and page cycling continue to use
-the saved page order.
+Previously committed LCD dashboards with six to ten pages remain readable and
+runnable with their original revision and digest. Firmware updates never truncate
+them. Reduce a draft to the negotiated capacity before sending. Each configuration
+retains its 32-distinct-reading and 64 KiB bound. Reading screens keep the lower
+edge free of page markers; swipe navigation and cycling use the saved page order.
+
 
 ## Dual + arc
 
 The App offers this beside Dual in the layout chooser. Two readings remain explicit;
 the user chooses which numeric reading drives the perimeter arc. Gear can occupy
-the other slot. The arc uses that reading's complete canonical range and availability,
-including unit conversion at presentation. A missing selected reading removes its
+the other slot. The arc follows that reading's availability. Numeric ranges and unit conversion
+follow the catalog, with a separate display scale for [RPM](#rpm-ring-and-trend-history). A missing selected reading removes its
 arc without hiding the healthy sibling. Ordinary Dual keeps its previous geometry.
 
 The document uses `renderer: "dualArc"` and required `arcMetricIndex: 0|1`.
@@ -40,6 +40,39 @@ The field is invalid on other renderers. The App requires `dx:1` before transfer
 The existing single arc object is reused; text is narrowed to fit within its ring.
 Custom definitions follow the same measured glyph fitting, units, range and
 unavailable rules as catalog readings. No label-based guessing of enum semantics.
+
+## RPM ring and trend history
+
+An engine RPM Arc or Dual + arc uses a 0 to 8,000 RPM display scale by default.
+In Customize, the **RPM redline** row lets the owner set a red zone for the selected
+ring. The scale ends at the next 500 RPM boundary at least 500 RPM above the
+configured redline. A value beyond the end fills the ring while the number still
+shows the measured RPM. Leave the field blank when the vehicle's redline is unknown.
+The setting is display-only and stays in the draft until Review and send. The App
+requires firmware capability `rl:1` before sending a configured redline.
+The [Jeep coverage](../vehicles/jeep/reading-coverage.md#rpm-display-reference)
+records the remaining calibration check.
+
+Trend pages share history by configured reading and source. The ESP32 retains
+up to 60 real observations across the last 30 seconds in RAM. It records at most
+one point per 500 ms from readings the gauge already polls. Page changes do not
+interrupt recording or schedule more OBD requests. The horizontal position uses
+the observation time. Source loss, invalid data and gaps longer than the reading's
+stale interval start a fresh trace. Reboot clears history. Dashes replace the value and the line disappears when
+the reading is unavailable.
+
+The vertical range uses the window's observed low and high with padding and a
+minimum span. Temperature uses an 8 °C minimum span, RPM 500 RPM, percentages
+and speed five canonical units, and voltage 0.2 V. Other continuous readings
+use a floor based on signal magnitude and canonical range. This keeps flat
+or nearly flat data legible without amplifying small fluctuations.
+The App's direct-adapter virtual gauge uses the same window and scaling.
+The number, decoder range, alert thresholds and vehicle command guards keep
+their existing raw-data semantics.
+
+ESP32 trend history and rendering scratch use a bounded PSRAM allocation only
+when a dashboard contains Trend pages. The reading remains available if history
+allocation fails. A missing curve mask uses the same data in the line renderer.
 
 ## Foreground reading motion
 
@@ -75,9 +108,15 @@ with a shorter needle that clears the ring. The reference splash and steady wait
 
 With no valid vehicle observation, it stays until touch or data. After observations
 have arrived, sixty seconds without a valid scoped vehicle observation returns to
-the logo. A touch wakes readings for thirty seconds; the waking stroke is consumed
-so it cannot also navigate or execute an action. Data wakes immediately, with the
-page populated from the existing cache before uncovering it. Original monotonic
+the logo. With both adapters disconnected, a touch shows the readings for six
+seconds, measured from the most recent touch, unless fresh data arrives. The
+waking stroke is consumed so it cannot also navigate or execute an action.
+When data arrives, wake keeps the selected page if every reading is available
+or opens the first fully populated saved page. The page renders from the cache
+before the logo is hidden. If no page is complete, wake allows up to one second
+for more samples, then shows a partial page if one is available. It keeps the logo up if no saved
+page has a displayable value. This temporary
+choice does not change the saved page order or selection. Original monotonic
 sample time, source, session and revision remain authoritative. Invalid or retired
 samples cannot postpone the logo. One healthy vehicle source keeps the combined
 view awake if its sibling disappears.
@@ -135,16 +174,18 @@ requests only foreground location.
 The gauge estimates solar daylight from UTC and the saved location using
 [NOAA's solar-position equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
 The schedule tracks seasonal daylight, including polar day or night. It runs
-locally once the App has synced the clock. On a cold boot without a valid
-retained clock, the gauge uses the last saved Day/Night mode until the App
-reconnects. A board with a supported battery-backed RTC can resume the
-schedule at boot. Update the saved location in Settings after travel.
+locally once the App has synced the clock. At boot, the gauge prefers a valid
+board RTC, then uses ESP32 system time if it survived the restart. A complete
+power loss still requires a working backup-powered RTC or another phone sync.
+Without valid time the gauge uses the last saved Day/Night mode. Update the saved location in Settings after travel.
 
 On the OLED adapter, a short release of the right-side BOOT key with USB-C
 at the bottom switches Day/Night. The override stays active through the next
 automatic phase evaluation and expires when the solar phase changes.
 Holding the key at startup, long presses and bouncing contacts do not
-toggle brightness. The reference LCD has no bound button shortcut. The
+toggle brightness. Short presses are debounced on the normal display loop.
+During firmware maintenance the loop retains the net toggle and applies it
+after maintenance ends. The reference LCD has no bound button shortcut. The
 display owner applies the hardware level, and scheduled state does not write
 flash between Day/Night changes. Settings migrations preserve the legacy
 brightness, rotation and cycling records.
@@ -179,16 +220,25 @@ original evidence and physical acceptance inputs.
 
 ## Resource and qualification gates
 
-Fixed bulk sampling/Smart state stays in PSRAM. Ten pages add two bounded page
+Fixed bulk sampling/Smart state stays in PSRAM. Larger dashboards use bounded page
 records, not tasks or per-page UI trees. Stability tracking is 20 bytes per active
 reading, at most 640 bytes. The optional orientation worker has a separately gated
 4 KiB internal static stack and is disabled in default images.
 
 Tests exercise real production LVGL with the same fixed 64 KiB arena size, native
-configuration compilation/rejection, cache/wake timing and ten-page fairness.
+configuration compilation/rejection, cache/wake timing and full-capacity fairness.
 A 100-redraw waiting-logo fixture checks its four-object tree and unchanged LVGL
 free memory after warm-up.
 They do not prove radio coexistence or physical comfort. Before rollout, verify
 saved-page migration/readback, cold boot and brightness, first-touch consumption,
-source loss/recovery, all ten pages, mixed gear/arc layouts, and Wi-Fi/BLE memory
+source loss/recovery, full board capacity, mixed gear/arc layouts, and Wi-Fi/BLE memory
 under loaded ECM/TCM polling. Orientation has its own qualification gate.
+
+Physical RPM-redline editing requires the advertised `rl:1` capability. An unsupported
+saved value can be removed from the draft without sending it; the phone-only virtual
+gauge remains independently editable. A firmware update is not suggested when the
+board intentionally omits this optional capability to retain its existing wire budget.
+
+The negotiated board capacity applies to physical editing and deployment only.
+Phone-only controls and Add page mutations use the phone draft capacity of twelve,
+regardless of a remembered LCD or OLED connection.

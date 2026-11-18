@@ -396,6 +396,7 @@ fun CompanionApp(
                                                         pages = model.editorDraft.pages.map { pageUi(it, virtualEditorUnits) },
                                                         readings = readingCatalog.filter { it.id in readingIds }.map { readingUi(it, virtualEditorUnits) },
                                                         measurementSystem = virtualEditorUnits,
+                                                        pageLimit = dashboardEditorPageLimit(state.customize.pageLimit, phoneOnly = true),
                                                         blockers = emptyList()
                                                     )
                                                 } else {
@@ -424,13 +425,13 @@ fun CompanionApp(
                                                             }
                                                         )
                                                     },
-                                                    model::addPage, model::removePage, model::movePage, model::selectLayout,
+                                                    { id -> model.addPage(id, phoneOnly = virtual) }, model::removePage, model::movePage, model::selectLayout,
                                                     model::saveAlert, model::removeAlert,
                                                     model::checkGaugeForReview, {
                                                         model.sendNumericConfiguration()
                                                         route =
                                                             Route.Gauge
-                                                    }, { route = Route.Setup }, model::selectArcMetric
+                                                    }, { route = Route.Setup }, model::selectArcMetric, model::setRpmRedline
                                                 ),
                                                 phoneOnly = virtual
                                             )

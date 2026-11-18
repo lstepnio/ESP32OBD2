@@ -1,5 +1,6 @@
 #include "trend_curve.h"
 #include <math.h>
+#include <float.h>
 #include <string.h>
 
 static float clamp(float value, float minimum, float maximum)
@@ -45,7 +46,10 @@ static void segment(uint8_t *mask, float x0, float y0, float x1, float y1)
                 mask[at] = opacity;
         }
 }
-bool trend_curve_mask(uint8_t mask[TREND_MASK_BYTES], const float *samples, size_t count)
+bool trend_curve_mask_positions(uint8_t      mask[TREND_MASK_BYTES],
+                                const float *samples,
+                                const float *positions,
+                                size_t       count)
 {
     if (!mask)
         return false;
@@ -53,19 +57,92 @@ bool trend_curve_mask(uint8_t mask[TREND_MASK_BYTES], const float *samples, size
     if (!samples || count < 2 || count > TREND_CAPACITY)
         return false;
     for (size_t i = 0; i < count; i++)
-        if (!isfinite(samples[i]) || samples[i] < 0 || samples[i] > 30)
+        if (!isfinite(samples[i]) || samples[i] < 0 || samples[i] > 30 ||
+            (positions && (!isfinite(positions[i]) || positions[i] < 0 || positions[i] > 144 ||
+                           (i && positions[i] < positions[i - 1]))))
             return false;
     float span = 144.f * (count - 1) / (TREND_CAPACITY - 1), start = 146 - span;
-    float previous_x = start, previous_y = 2 + samples[0];
+    float previous_x = positions ? 2 + positions[0] : start, previous_y = 2 + samples[0];
     for (size_t interval = 0; interval < count - 1; interval++)
         for (unsigned step = 1; step <= 5; step++)
         {
             float position = interval + (float)step / 5;
-            float x        = start + position * span / (count - 1);
-            float y        = 2 + trend_curve_value(samples, count, position);
+            float x = positions ? 2 + positions[interval] + (positions[interval + 1] - positions[interval]) * step / 5.f
+                                : start + position * span / (count - 1);
+            float y = 2 + trend_curve_value(samples, count, position);
             segment(mask, previous_x, previous_y, x, y);
             previous_x = x;
             previous_y = y;
         }
     return true;
+}
+
+bool trend_curve_mask(uint8_t mask[TREND_MASK_BYTES], const float *samples, size_t count)
+{
+    return trend_curve_mask_positions(mask, samples, NULL, count);
+}
+
+void trend_history_clear(trend_history_t *history)
+{
+    if (history->count)
+    {
+        history->count = history->next = 0;
+        ++history->revision;
+    }
+}
+
+void trend_history_record(trend_history_t *history, uint32_t at_ms, double value, uint32_t gap_ms)
+{
+    if (!isfinite(value) || fabs(value) > FLT_MAX)
+    {
+        trend_history_clear(history);
+        return;
+    }
+    if (history->count)
+    {
+        unsigned latest  = (history->next + TREND_CAPACITY - 1) % TREND_CAPACITY;
+        uint32_t elapsed = at_ms - history->samples[latest].at_ms;
+        if (elapsed >= UINT32_MAX / 2 || elapsed < TREND_INTERVAL_MS)
+            return;
+        if (elapsed > gap_ms)
+            trend_history_clear(history);
+    }
+    history->samples[history->next] = (trend_sample_t){at_ms, (float)value};
+    history->next                   = (history->next + 1) % TREND_CAPACITY;
+    if (history->count < TREND_CAPACITY)
+        ++history->count;
+    ++history->revision;
+}
+
+size_t trend_history_copy(const trend_history_t *history, trend_sample_t out[TREND_CAPACITY])
+{
+    if (!history->count)
+        return 0;
+    unsigned latest = (history->next + TREND_CAPACITY - 1) % TREND_CAPACITY;
+    uint32_t now    = history->samples[latest].at_ms;
+    size_t   count  = 0;
+    for (unsigned i = 0; i < history->count; ++i)
+    {
+        trend_sample_t sample =
+            history->samples[(history->next + TREND_CAPACITY - history->count + i) % TREND_CAPACITY];
+        if (now - sample.at_ms <= TREND_WINDOW_MS)
+            out[count++] = sample;
+    }
+    return count;
+}
+
+void trend_scale(const trend_sample_t *samples, size_t count, double minimum_span, float *scaled)
+{
+    if (!count)
+        return;
+    double low = samples[0].value, high = low;
+    for (size_t i = 1; i < count; ++i)
+    {
+        low  = fmin(low, samples[i].value);
+        high = fmax(high, samples[i].value);
+    }
+    double span   = fmax(minimum_span, (high - low) * 1.25);
+    double center = (low + high) / 2;
+    for (size_t i = 0; i < count; ++i)
+        scaled[i] = 30 - 30 * clamp(0.5 + (samples[i].value - center) / span, 0, 1);
 }

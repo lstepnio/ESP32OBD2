@@ -3,6 +3,7 @@ package com.lstepnio.egauge.ui.state
 import androidx.compose.runtime.Immutable
 import com.lstepnio.egauge.GaugeLayout
 import com.lstepnio.egauge.GaugePairingWindow
+import com.lstepnio.egauge.MAX_DASHBOARD_PAGES
 import com.lstepnio.egauge.MeasurementSystem
 import com.lstepnio.egauge.OwnerAccess
 import com.lstepnio.egauge.connection.ConnectionState
@@ -19,7 +20,8 @@ data class PageUi(
     val layout: GaugeLayout,
     val preview: ReadingPreviewUi,
     val secondaryId: String? = null,
-    val arcMetricIndex: Int = 0
+    val arcMetricIndex: Int = 0,
+    val rpmRedline: Int? = null
 )
 
 @Immutable
@@ -93,7 +95,9 @@ data class CustomizeUiState(
     val editingIssue: String? = null,
     val reviewAlerts: List<AlertUi>? = null,
     val reviewNotice: String? = null,
-    val idleCoolantWarning: Boolean = false
+    val idleCoolantWarning: Boolean = false,
+    val pageLimit: Int = MAX_DASHBOARD_PAGES,
+    val rpmRedlineSupported: Boolean = false
 )
 
 @Immutable

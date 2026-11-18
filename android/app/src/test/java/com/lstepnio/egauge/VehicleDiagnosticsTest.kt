@@ -110,4 +110,29 @@ class VehicleDiagnosticsTest {
             validateDiagnosticScope(d.copy(simulated = true), "TCM", 28)
         }
     }
+
+    @Test fun liveWarningContextExpiresItsOwnReceiptAndRejectsRetiredEvidence() {
+        val data = GaugeProtocolCodec.diagnostics(packet()).copy(
+            connected = true,
+            categories = listOf(
+                DiagnosticCategory("Stored", DiagnosticAvailability.Available, true, true, listOf("P0730"), 90_000)
+            )
+        )
+        fun category(elapsed: Long, snapshot: GaugeConfigTransferClient.Diagnostics = data) = diagnosticContextSnapshot(mapOf("TCM" to snapshot), mapOf("TCM" to 100_000L), 100_000L + elapsed, data.revision)
+            .getJSONObject("TCM").getJSONArray("categories").getJSONObject(0)
+        assertTrue(category(30_000).getBoolean("fresh"))
+        assertFalse(category(30_001).getBoolean("fresh"))
+        assertFalse(category(-1).getBoolean("fresh"))
+        assertFalse(category(0, data.copy(connected = false)).getBoolean("fresh"))
+        val ageExpired = data.copy(categories = data.categories!!.map { it.copy(ageMs = 120_000) })
+        assertTrue(category(0, ageExpired).getBoolean("fresh"))
+        assertFalse(category(1, ageExpired).getBoolean("fresh"))
+        assertFalse(
+            diagnosticContextSnapshot(mapOf("TCM" to data), emptyMap(), 100_000, data.revision)
+                .getJSONObject("TCM").getJSONArray("categories").getJSONObject(0).getBoolean("fresh")
+        )
+        assertFalse(diagnosticContextSnapshot(mapOf("TCM" to data), mapOf("TCM" to 100_000), 100_000, data.revision!! + 1).has("TCM"))
+        assertFalse(diagnosticContextSnapshot(mapOf("ECM" to data), mapOf("ECM" to 100_000), 100_000, data.revision).has("ECM"))
+        assertFalse(diagnosticContextSnapshot(mapOf("TCM" to data.copy(simulated = true)), mapOf("TCM" to 100_000), 100_000, data.revision).has("TCM"))
+    }
 }

@@ -344,7 +344,7 @@ static bool definition_valid(const cJSON *item, const cJSON *sources)
 
 static bool page_valid(const cJSON *item, const cJSON *definitions)
 {
-    static const char *const keys[]      = {"id", "name", "renderer", "pidIds", "arcMetricIndex"};
+    static const char *const keys[]      = {"id", "name", "renderer", "pidIds", "arcMetricIndex", "rpmRedline"};
     static const char *const renderers[] = {"numeric", "arc", "bar", "trend", "dual", "dualArc"};
     const cJSON             *renderer    = cJSON_GetObjectItemCaseSensitive(item, "renderer");
     const cJSON             *ids         = cJSON_GetObjectItemCaseSensitive(item, "pidIds");
@@ -358,6 +358,14 @@ static bool page_valid(const cJSON *item, const cJSON *definitions)
     bool         dual_arc = !strcmp(renderer->valuestring, "dualArc");
     if ((dual_arc && !integer(arc, 0, 1)) || (!dual_arc && arc))
         return false;
+    const cJSON *redline = cJSON_GetObjectItemCaseSensitive(item, "rpmRedline");
+    if (redline)
+    {
+        const cJSON *selected = cJSON_GetArrayItem(ids, dual_arc ? arc->valueint : 0);
+        if ((!dual_arc && strcmp(renderer->valuestring, "arc")) || !integer(redline, 1000, 16000) ||
+            !cJSON_IsString(selected) || strcmp(selected->valuestring, "engine.rpm"))
+            return false;
+    }
     if (dual_arc)
     {
         const cJSON *selected_id = cJSON_GetArrayItem(ids, arc->valueint);
@@ -473,8 +481,8 @@ static bool document_valid(const cJSON *root, const config_document_context_t *c
         !integer(cJSON_GetObjectItemCaseSensitive(root, "brightness"), 5, 100) ||
         !cJSON_IsBool(cJSON_GetObjectItemCaseSensitive(root, "reducedMotion")) ||
         !array_size(sources, 1, context->max_adapter_links) || !array_size(definitions, 1, 32) ||
-        !array_size(pages, 1, 10) || !array_size(alerts, 0, 32) || !unique_ids(sources) || !unique_ids(definitions) ||
-        !unique_ids(pages) || !unique_ids(alerts))
+        !array_size(pages, 1, context->max_pages) || !array_size(alerts, 0, 32) || !unique_ids(sources) ||
+        !unique_ids(definitions) || !unique_ids(pages) || !unique_ids(alerts))
         return false;
     const cJSON *filters = cJSON_GetObjectItemCaseSensitive(root, "diagnosticFilters");
     if (filters)

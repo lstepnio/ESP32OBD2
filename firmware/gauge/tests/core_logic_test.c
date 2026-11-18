@@ -71,6 +71,16 @@ static void test_display_units(void)
 static void test_decimal_display(void)
 {
     char text[32];
+    display_units_format_reading(text, sizeof(text), 14.555, "V", false, true);
+    assert(strcmp(text, "14.6") == 0);
+    display_units_format_reading(text, sizeof(text), .825, "V", false, false);
+    assert(strcmp(text, "0.825") == 0);
+    display_units_format_reading(text, sizeof(text), 50.196, "%", false, false);
+    assert(strcmp(text, "50.2") == 0);
+    display_units_format_reading(text, sizeof(text), 100, "kPa", true, false);
+    assert(strcmp(text, "14.5") == 0);
+    display_units_format_reading(text, sizeof(text), 2.5, "L/h", true, false);
+    assert(strcmp(text, "0.66") == 0);
     display_units_format(text, sizeof(text), 14.2, "V", false);
     assert(!strcmp(text, "14.2"));
     display_units_format(text, sizeof(text), .825, "g/s", false);

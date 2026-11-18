@@ -33,6 +33,8 @@ typedef struct
     bool     stable;
     bool     armed;
     bool     tracking;
+    bool     pending;
 } sunset_button_t;
 
-bool sunset_button_release(sunset_button_t *button, bool pressed, uint64_t now_ms);
+/* Sample even during maintenance. Apply the net toggle once the display is available. */
+bool sunset_button_update(sunset_button_t *button, bool pressed, bool can_apply, uint64_t now_ms);

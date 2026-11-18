@@ -79,6 +79,17 @@ fun RoundPreview(
                             style = Stroke(13f, cap = StrokeCap.Round)
                         )
                     }
+                    state.rpmRedlineFraction?.let { redline ->
+                        drawArc(
+                            EGaugeTokens.Dark.critical,
+                            138f + 264f * redline,
+                            264f * (1f - redline),
+                            false,
+                            Offset(19.5f, 19.5f),
+                            Size(241f, 241f),
+                            style = Stroke(13f)
+                        )
+                    }
                 }
                 fun text(
                     value: String,
@@ -164,7 +175,8 @@ fun RoundPreview(
                         PreviewLayout.Trend -> if (!missing && (!state.live || state.trendFractions.size >= 2)) {
                             val points = if (state.live) {
                                 state.trendFractions.mapIndexed { index, fraction ->
-                                    Offset(62f + 153f * index / state.trendFractions.lastIndex, 216f - 33f * fraction)
+                                    val position = state.trendPositions.getOrNull(index) ?: index.toFloat() / state.trendFractions.lastIndex
+                                    Offset(62f + 153f * position, 216f - 33f * fraction)
                                 }
                             } else {
                                 listOf(

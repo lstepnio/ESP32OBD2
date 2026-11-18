@@ -166,3 +166,12 @@ python tools/research/query_vehicle_catalog.py search --category LiveData \
 
 Neither this search nor the candidate inventory enables imported definitions.
 The [archive scope and rights](../catalog-research.md) continue to apply.
+
+
+## RPM display reference
+
+The factory 2010 Ram 1500 5.7 L Hemi specification lists a maximum engine
+speed of 5,800 RPM. Treat it as donor-family context. The captured swapped
+PCM identity and supported-PID bitmap do not establish the redline of the
+installed calibration. Leave the ring's red zone unset until the owner can
+confirm the tune. [Factory specifications](https://s3.amazonaws.com/chryslermedia.iconicweb.com/mediasite/specs/2010_RAM_1500.pdf)

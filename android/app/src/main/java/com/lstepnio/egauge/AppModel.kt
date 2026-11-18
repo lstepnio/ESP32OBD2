@@ -54,11 +54,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var alertListRequest by mutableStateOf<String?>(null)
     fun diagnosticFiltersForVehicle(vehicle: String): List<DiagnosticCodeFilter> = profileCollection.profiles.firstOrNull { it.id == vehicle }?.dashboardDraft()?.diagnosticFilters.orEmpty()
-    fun visibleAlertEntry(entry: StoredAlert): StoredAlert? = AlertVisibility.project(entry, diagnosticFiltersForVehicle(entry.vehicle))
+    private fun liveAlertDiagnostics(entry: StoredAlert): org.json.JSONObject? = if (isAlertCurrent(entry)) org.json.JSONObject(diagnosticContext()) else null
+    fun visibleAlertEntry(entry: StoredAlert): StoredAlert? = AlertVisibility.project(entry, diagnosticFiltersForVehicle(entry.vehicle), liveAlertDiagnostics(entry))
     private val visibleHistory by derivedStateOf {
         val vehicle = profileCollection.activeId
-        val rules = diagnosticFiltersForVehicle(vehicle)
-        alertHistory.filter { it.vehicle == vehicle }.mapNotNull { AlertVisibility.project(it, rules) }
+        alertHistory.filter { it.vehicle == vehicle }.mapNotNull(::visibleAlertEntry)
     }
     fun visibleAlertHistory(): List<StoredAlert> = visibleHistory
     private var alertScope = ""
@@ -80,6 +80,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 alertPreferences.edit().putBoolean("enabled", value).commit()
             }
             if (success) {
+                if (!value) alertNotifications.discardPendingCodes()
                 phoneAlertsEnabled = value
                 saved()
             } else {
@@ -515,39 +516,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 terminal = true
             )
     }
-    private fun diagnosticContext(): String = org.json.JSONObject().apply {
-        diagnosticsBySource.forEach { (source, data) ->
-            put(
-                source,
-                org.json.JSONObject().put("milOn", data.milOn)
-                    .put(
-                        "milFresh",
-                        data.milFresh
-                    ).put("connected", data.connected).put("responder", data.responder)
-                    .put("reportedCount", data.reportedCount).put("milKnown", data.milKnown)
-                    .put("milAvailability", data.milAvailability.name)
-                    .put(
-                        "categories",
-                        org.json.JSONArray().apply {
-                            data.categories?.forEach { category ->
-                                put(
-                                    org.json.JSONObject().put(
-                                        "name",
-                                        category.name
-                                    ).put("availability", category.availability.name)
-                                        .put(
-                                            "fresh",
-                                            category.fresh
-                                        ).put("codes", org.json.JSONArray(category.codes))
-                                        .put("known", category.known).put("truncated", category.truncated)
-                                        .put("ageMs", category.ageMs)
-                                )
-                            }
-                        }
-                    )
-            )
-        }
-    }.toString()
+    private fun diagnosticContext(): String = diagnosticContextSnapshot(
+        diagnosticsBySource,
+        diagnosticsCheckedAt,
+        android.os.SystemClock.elapsedRealtime(),
+        activeDocument?.revision
+    ).toString()
+
     private suspend fun pollAlerts(
         client: GaugeConfigTransferClient,
         device: BluetoothDevice
@@ -622,6 +597,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         0
                     lastAlertBoot = batch.boot
                 }
+                lastAlertChecked = android.os.SystemClock.elapsedRealtime()
                 val live = cursor.boot == batch.boot && cursor.sequence > 0 && !batch.gap
                 val diagnostics = diagnosticContext()
                 var storageFailed = false
@@ -677,9 +653,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             gauge,
                             live,
                             connectionForeground,
-                            raw != null && visible == null,
+                            visible == null && (raw != null || event.key in 32..33),
                             displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
-                            visible?.let { recordedFaultCodes(it.context) }.orEmpty()
+                            visible?.let { recordedFaultCodes(it.context) }.orEmpty(),
+                            pendingEvidence = raw != null && AlertVisibility.awaitingCodes(raw, liveAlertDiagnostics(raw))
                         )
                     }
                 }
@@ -690,11 +667,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 if (phoneAlertsEnabled && !storageFailed) {
+                    alertNotifications.retryPendingCodes(
+                        alertHistory,
+                        ::visibleAlertEntry,
+                        ::isAlertCurrent,
+                        { AlertVisibility.awaitingCodes(it, liveAlertDiagnostics(it)) },
+                        connectionForeground,
+                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
+                    )
                     alertNotifications.reconcile(
                         vehicle,
                         alertHistory.filter { it.vehicle == vehicle },
                         filterRules,
-                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem
+                        displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
+                        project = ::visibleAlertEntry
                     )
                 }
                 val capture = if (storageFailed) {
@@ -1891,6 +1877,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         require((transmittedDraft.actions.isEmpty() || capabilities?.pageActionsVersion in 1..2) && ProfileActions.supported(transmittedDraft.actions, capabilities?.vehicleCommandsVersion, capabilities?.burnoutActionsVersion)) {
             "Update the gauge before sending gesture actions"
+        }
+        require(transmittedDraft.pages.none { it.rpmRedline != null } || capabilities?.rpmRedlineSupported == true) {
+            "Update the gauge before sending the RPM redline"
         }
         require(!requiresOxygenVoltageFirmware(transmittedDraft) || capabilities?.oxygenVoltageSupported == true) {
             "Update the gauge before sending oxygen sensor voltage readings"
@@ -3671,9 +3660,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // Page order/readings remain committed. Navigation does not create a disk write.
     }
 
-    fun addPage(pidId: String = "rpm") {
+    internal val editorPageLimit: Int
+        get() = dashboardEditorPageLimit(capabilities?.maxPages)
+
+    fun addPage(pidId: String = "rpm", phoneOnly: Boolean = false) {
         val working = editorDraft
-        if (working.pages.size >= 10 ||
+        if (working.pages.size >= dashboardEditorPageLimit(capabilities?.maxPages, phoneOnly) ||
             pidId !in ConfigurationProjector.pagePidIds(working.source)
         ) {
             return
@@ -3755,7 +3747,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             current.layout
         }
-        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex))
+        pages[editingPageIndex] = current.copy(name = pid.gaugeLabel, pidIds = ids, layout = layout, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex)).withoutInapplicableRedline()
         save(working.copy(pidId = pid.id, layout = layout, source = working.source, pages = pages))
     }
 
@@ -3769,7 +3761,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val pages = working.pages.toMutableList()
         val current = pages[editingPageIndex]
         if (!current.layout.isDual || current.pidIds.first() == pid.id) return
-        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id), arcMetricIndex = numericArcIndex(current.layout, listOf(current.pidIds.first(), pid.id), current.arcMetricIndex))
+        pages[editingPageIndex] = current.copy(pidIds = listOf(current.pidIds.first(), pid.id), arcMetricIndex = numericArcIndex(current.layout, listOf(current.pidIds.first(), pid.id), current.arcMetricIndex)).withoutInapplicableRedline()
         save(working.copy(pages = pages))
     }
 
@@ -3788,7 +3780,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             listOf(current.pidIds.first())
         }
-        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex))
+        pages[editingPageIndex] = current.copy(layout = layout, pidIds = ids, arcMetricIndex = numericArcIndex(layout, ids, current.arcMetricIndex)).withoutInapplicableRedline()
         save(working.copy(layout = layout, pages = pages))
     }
 
@@ -3804,7 +3796,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val working = editorDraft
         val current = working.pages.getOrNull(editingPageIndex) ?: return
         if (current.layout != GaugeLayout.DualArc || index !in 0..1 || numericArcIndex(current.layout, current.pidIds, index) != index) return
-        save(working.copy(pages = working.pages.mapIndexed { i, page -> if (i == editingPageIndex) page.copy(arcMetricIndex = index) else page }))
+        save(working.copy(pages = working.pages.mapIndexed { i, page -> if (i == editingPageIndex) page.copy(arcMetricIndex = index).withoutInapplicableRedline() else page }))
+    }
+
+    fun setRpmRedline(value: Int?) {
+        val working = editorDraft
+        val current = working.pages.getOrNull(editingPageIndex) ?: return
+        if (!current.isRpmRing || (value != null && value !in rpmRedlineRange)) return
+        save(
+            working.copy(
+                pages = working.pages.mapIndexed { index, page ->
+                    if (index == editingPageIndex) page.copy(rpmRedline = value) else page
+                }
+            )
+        )
     }
 
     /** Commit a completed form once. Opening or cancelling never creates an alert. */
@@ -4065,7 +4070,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     policies.forEach { (vehicle, rules) ->
                         try {
                             val raw = withContext(kotlinx.coroutines.Dispatchers.IO) { alertRepository.list(vehicle) }
-                            alertNotifications.reconcile(vehicle, raw, rules, presentationPreferences.measurementSystem)
+                            alertNotifications.reconcile(vehicle, raw, rules, presentationPreferences.measurementSystem, project = ::visibleAlertEntry)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {

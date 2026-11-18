@@ -3,6 +3,7 @@
 #include "adapter_role_policy.h"
 #include "vehicle_idle_coolant.h"
 #include "worker_health.h"
+#include "stall_monitor.h"
 #include "boot_health.h"
 #include "memory_health.h"
 // ---------------------------------------------------------------------------------------------------------------------
@@ -128,9 +129,11 @@ static const obd_pid_cfg_t g_obd_pids[] = {
 // Global Variables
 // ---------------------------------------------------------------------------------------------------------------------
 
-static atomic_uchar          g_selected_page;
-static atomic_uint           g_local_page_generation;
-static atomic_uint           g_page_activity_ms;
+static atomic_uchar g_selected_page;
+static atomic_uint  g_local_page_generation;
+static atomic_uint  g_page_activity_ms;
+/* Paired with the manual generation under the LVGL lock. */
+static uint8_t               g_page_to_save;
 static config_runtime_t     *g_runtime;
 static config_store_record_t g_running_config_record;
 static bool                  g_running_previous_config;
@@ -279,24 +282,59 @@ static void page_ui(unsigned index, ui_page_t *out)
     out->renderer              = ui_renderer(page->renderer);
     out->metric_count          = page->pid_count;
     out->arc_metric_index      = page->arc_metric_index;
+    out->rpm_redline           = page->rpm_redline;
     for (unsigned i = 0; i < page->pid_count; ++i)
     {
         const runtime_pid_t *pid = &g_runtime->pids[page->pid_indices[i]];
         out->metrics[i]          = (ui_metric_t){
             .presentation = reading_presentation_kind(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms),
             .pid          = pid->obd.pid,
-            .scoped       = true,
-            .source_index = pid->source_index,
-            .revision     = g_running_config_record.revision,
-            .name         = pid->name,
-            .unit         = pid->unit,
-            .minimum      = pid->obd.decoder.minimum,
-            .maximum      = pid->obd.decoder.maximum,
+            .module_voltage = pid->service == 1 && pid->obd.pid == 0x42 && !strcmp(pid->unit, "V"),
+            .scoped         = true,
+            .source_index   = pid->source_index,
+            .revision       = g_running_config_record.revision,
+            .name           = pid->name,
+            .unit           = pid->unit,
+            .minimum        = pid->obd.decoder.minimum,
+            .maximum        = pid->obd.decoder.maximum,
             .stale_after_ms =
                 reading_policy(pid->id, pid->service, pid->obd.pid, pid->poll_ms, pid->stale_ms, false, false, false)
                     .display_age_ms,
         };
     }
+}
+
+static bool select_wake_page(ui_t *ui, bool allow_partial)
+{
+    const uint8_t  current = atomic_load(&g_selected_page);
+    const unsigned count   = page_count();
+    ui_page_t      page;
+    page_ui(current, &page);
+    ui_page_readiness_t best     = ui_page_readiness(ui, &page);
+    uint8_t             selected = current;
+    for (unsigned i = 0; i < count && best != UI_PAGE_COMPLETE; ++i)
+    {
+        if (i == current)
+            continue;
+        page_ui(i, &page);
+        const ui_page_readiness_t ready = ui_page_readiness(ui, &page);
+        if (ready > best)
+        {
+            best     = ready;
+            selected = i;
+        }
+    }
+    if (best == UI_PAGE_EMPTY || (best == UI_PAGE_PARTIAL && !allow_partial))
+        return false;
+    if (selected != current)
+    {
+        page_ui(selected, &page);
+        ui_set_page(ui, &page);
+        atomic_store(&g_selected_page, selected);
+        ble_companion_selection_applied(selected);
+    }
+    atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
+    return true;
 }
 
 typedef struct
@@ -594,6 +632,31 @@ static bool confirm_abs_record_discard(void)
     lv_obj_delete(prompt);
     lvgl_port_unlock();
     return confirmed;
+}
+
+static void stall_monitor_task(void *arg)
+{
+    (void)arg;
+    const worker_id_t watched[]                    = {WORKER_APP, WORKER_UI};
+    bool              stalled[ARRAY_SIZE(watched)] = {false};
+    uint32_t          started                      = (uint32_t)(esp_timer_get_time() / 1000);
+    for (;;)
+    {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+        for (unsigned i = 0; i < ARRAY_SIZE(watched); ++i)
+        {
+            worker_health_t health = worker_health_snapshot(watched[i], now);
+            bool            next   = worker_is_stalled(health, now - started);
+            if (next != stalled[i])
+            {
+                stalled[i] = next;
+                ESP_LOGW(TAG, "Worker %s %s (progress=%" PRIu32 ", age_ms=%" PRIu32 ")", worker_health_name(watched[i]),
+                         next ? "stalled" : "resumed", health.progress_count,
+                         health.observed ? health.age_ms : now - started);
+            }
+        }
+    }
 }
 
 static void boot_health_task(void *arg)
@@ -1323,6 +1386,7 @@ static void ui_touch_callback(ui_t *ui, lv_event_code_t event_code)
         atomic_store(&g_selected_page, selected);
         atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
         ble_companion_selection_applied(selected);
+        g_page_to_save = selected;
         atomic_fetch_add(&g_local_page_generation, 1);
         if (event_code == UI_EVENT_PAGE_ACTION)
             ui_action_applied(ui);
@@ -1371,9 +1435,9 @@ static void init_config(void)
     ESP_ERROR_CHECK(display_settings_init(0, DISPLAY_DAY_BRIGHTNESS_DEFAULT, 0));
     sunset_runtime_init();
     gauge_board_initialize();
-    const gauge_board_t *board = gauge_board_description();
-    if (board->read_utc)
-        sunset_runtime_sync(board->read_utc(), (uint64_t)(esp_timer_get_time() / 1000));
+    const gauge_board_t *board     = gauge_board_description();
+    uint32_t             board_utc = board->read_utc ? board->read_utc() : 0;
+    sunset_runtime_restore_clock(board_utc, (uint64_t)(esp_timer_get_time() / 1000));
     gauge_display_set_rotation((lv_display_rotation_t)display_settings_boot_rotation());
     if (lvgl_port_lock(portMAX_DELAY))
     {
@@ -1438,6 +1502,7 @@ static void init_config(void)
     ESP_ERROR_CHECK(display_settings_init(default_rotation, default_brightness, 0));
     g_config.disp_rot = (lv_display_rotation_t)display_settings_boot_rotation();
     atomic_store(&g_selected_page, g_config.cfg_idx);
+    g_page_to_save = g_config.cfg_idx;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1510,8 +1575,28 @@ void app_main(void)
     ui_t *ui = ui_init(&initial_page, ui_interval_ms, ui_touch_callback, pairing_required,
                        display_settings_snapshot().units == 1);
     ESP_NULL_CHECK(ui, TAG, "Failed to initialize UI");
+    if (g_runtime)
+    {
+        ui_trend_metric_t trends[EGAUGE_RUNTIME_PAGES];
+        unsigned          count   = 0;
+        uint32_t          tracked = 0;
+        for (unsigned i = 0; i < g_runtime->page_count; ++i)
+        {
+            const runtime_page_t *page  = &g_runtime->pages[i];
+            uint8_t               index = page->pid_indices[0];
+            if (page->renderer != RUNTIME_RENDERER_TREND || (tracked & (UINT32_C(1) << index)))
+                continue;
+            tracked |= UINT32_C(1) << index;
+            const runtime_pid_t *pid = &g_runtime->pids[index];
+            trends[count++] =
+                (ui_trend_metric_t){pid->obd.pid, pid->source_index, g_running_config_record.revision, pid->stale_ms};
+        }
+        if (count && !ui_configure_trends(ui, trends, count))
+            ESP_LOGW(TAG, "Trend history unavailable: insufficient PSRAM");
+    }
     if (lvgl_port_lock(portMAX_DELAY))
     {
+        ui_set_wake_page_callback(ui, select_wake_page);
         if (g_runtime)
         {
             ui_configure_page_action(ui, g_runtime->page_action);
@@ -1583,6 +1668,8 @@ void app_main(void)
     init_obd_task(ui);
     BaseType_t tick_started = xTaskCreate(app_tick_task, "app_tick", 4096, ui, 5, NULL);
     ESP_CHECK(tick_started == pdPASS, TAG, "Application tick task creation failed");
+    if (xTaskCreate(stall_monitor_task, "stall_monitor", 3072, NULL, 4, NULL) != pdPASS)
+        ESP_LOGW(TAG, "Runtime stall monitor unavailable");
     bool config_trial = g_runtime && config_trial_needs_confirmation(g_running_config_record.revision);
     if (ota_trial_pending() || config_trial)
     {
@@ -1610,6 +1697,7 @@ void app_main(void)
                     page_ui(command.value, &page);
                     ui_set_page(ui, &page);
                     atomic_store(&g_selected_page, command.value);
+                    g_page_to_save = command.value;
                     atomic_store(&g_page_activity_ms, pdTICKS_TO_MS(xTaskGetTickCount()));
                     lvgl_port_unlock();
                     ble_companion_selection_applied(command.value);
@@ -1762,8 +1850,9 @@ void app_main(void)
         bool                   maintenance = !transfer_gate_vehicle_allowed();
         static sunset_button_t night_button;
         uint64_t               display_now_ms = (uint64_t)(esp_timer_get_time() / 1000);
-        bool            night_tap = board->night_button_pressed &&
-                                    sunset_button_release(&night_button, board->night_button_pressed(), display_now_ms);
+        bool                   night_tap =
+            board->night_button_pressed &&
+            sunset_button_update(&night_button, board->night_button_pressed(), !maintenance, display_now_ms);
         static uint64_t next_brightness_try;
         if (!maintenance)
         {
@@ -1915,7 +2004,7 @@ void app_main(void)
             if (!lvgl_port_lock(0))
                 continue;
             generation      = atomic_load(&g_local_page_generation);
-            updated.cfg_idx = atomic_load(&g_selected_page);
+            updated.cfg_idx = g_page_to_save;
             lvgl_port_unlock();
             if (generation != page_save.generation)
             {

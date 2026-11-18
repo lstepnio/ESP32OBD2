@@ -22,6 +22,7 @@ class SmartPageCyclingTests(unittest.TestCase):
                     "-Werror",
                     "-fsanitize=address,undefined",
                     "-Ifirmware/gauge/main/inc",
+                    "-DEGAUGE_BOARD_PAGE_LIMIT=12",
                     "firmware/gauge/tests/smart_page_policy_test.c",
                     "firmware/gauge/main/src/smart_page_policy.c",
                     "firmware/gauge/main/src/smart_metric_catalog.c",

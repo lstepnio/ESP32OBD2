@@ -8,7 +8,7 @@
 static bool metric_value(ui_t *ui, unsigned index, double *value)
 {
     ui_sample_t sample;
-    bool        available = metric_sample(ui, index, &sample);
+    bool        available = metric_sample(ui, &ui->display.page.metrics[index], &sample);
     if (available)
         *value = sample.value;
     return available;
@@ -29,6 +29,21 @@ static void     command_touch(ui_t *ui, lv_event_code_t event)
         ++owner_confirmations;
     else if (event == UI_EVENT_PAGE_ACTION)
         ui_show_vehicle_actions(ui);
+}
+
+static ui_page_t wake_alternative;
+static bool      choose_fixture_wake_page(ui_t *ui, bool allow_partial)
+{
+    const ui_page_readiness_t current     = ui_page_readiness(ui, &ui->display.page);
+    const ui_page_readiness_t alternative = ui_page_readiness(ui, &wake_alternative);
+    if (current == UI_PAGE_COMPLETE)
+        return true;
+    if (alternative == UI_PAGE_COMPLETE)
+    {
+        ui_set_page(ui, &wake_alternative);
+        return true;
+    }
+    return allow_partial && current == UI_PAGE_PARTIAL;
 }
 
 void worker_health_progress(worker_id_t id, uint32_t now)
@@ -242,15 +257,20 @@ static void presentation_regression(ui_t *ui)
     page.renderer     = UI_RENDERER_TREND;
     page.metric_count = 1;
     double measured   = 1000;
+    ui_set_value(ui, 12, NULL);
     ui_set_value(ui, 12, &measured);
+    host_ms += 500;
     ui_set_page(ui, &page);
     host_ms += 50;
     measured = 2200;
     ui_set_value(ui, 12, &measured);
-    ui->display.trend_recorded_at = xTaskGetTickCount() - pdMS_TO_TICKS(500);
     render_page(ui);
     assert(ui->display.rendered_values[0] == 1000); /* Trend label shares RPM stabilization. */
-    assert(fabs(ui->display.trend_samples[TREND_CAPACITY - 1] - 21.75) < .001); /* History is raw 2200 RPM. */
+    if (!host_psram_failure)
+    {
+        assert(ui->display.trend_count == 2);
+        assert(ui->trends->points[1].value == 2200); /* History is raw, even while text is stabilized. */
+    }
     host_ms += 200;
     render_page(ui);
     assert(ui->display.rendered_values[0] == measured);
@@ -394,6 +414,10 @@ int main(int argc, char **argv)
     ui_t *ui = ui_init(&saved, 50, touch, false, false);
     assert(ui);
     assert((ui->display.trend_mask == NULL) == host_psram_failure);
+    const ui_trend_metric_t trend_metrics[] = {{12, UINT8_MAX, 0, 2000}, {15, UINT8_MAX, 0, 4000}};
+    assert(ui_configure_trends(ui, trend_metrics, 2) != host_psram_failure);
+    assert(lv_obj_has_flag(ui->widgets.redline_arc, LV_OBJ_FLAG_HIDDEN));
+
     /* Objects must be hidden before even the first UI timer callback. */
     assert(lv_obj_has_flag(ui->widgets.diagnostics_icon, LV_OBJ_FLAG_HIDDEN));
     assert(lv_obj_has_flag(ui->widgets.alert_icon, LV_OBJ_FLAG_HIDDEN));
@@ -1280,44 +1304,110 @@ int main(int argc, char **argv)
     assert(!ui->waiting_visible && command_requests == before);
     tick(DISPLAY_IDLE_TOUCH_MS + 1);
     assert(ui->waiting_visible);
+    /* Both links can be ready before the selected page has all its readings. */
+    ui_page_t wake_dual = dual_arc;
+    for (unsigned i = 0; i < 2; ++i)
+    {
+        wake_dual.metrics[i].scoped       = true;
+        wake_dual.metrics[i].source_index = 1 - i;
+        wake_dual.metrics[i].revision     = 7;
+    }
+    ui_set_page(ui, &wake_dual);
+    wake_alternative              = wake_dual;
+    wake_alternative.name         = "Complete RPM";
+    wake_alternative.renderer     = UI_RENDERER_NUMERIC;
+    wake_alternative.metric_count = 1;
+    wake_alternative.metrics[0]   = wake_dual.metrics[1];
+    ui_set_wake_page_callback(ui, choose_fixture_wake_page);
     vehicle = true;
     ui_set_source_state(ui, 0, true, 7, source_generations[0]);
+    ui_set_source_state(ui, 1, true, 7, source_generations[1]);
+    ui_set_source_value(ui, 1, 7, source_generations[1], 0x5503, &park, host_ms);
+    assert(ui_page_readiness(ui, &wake_dual) == UI_PAGE_PARTIAL);
+    tick(60);
+    assert(ui->waiting_visible);
+    ui_set_source_value(ui, 1, 7, source_generations[1] - 1, 0x0c, &idle_rpm, host_ms);
+    assert(ui_page_readiness(ui, &wake_alternative) == UI_PAGE_EMPTY);
+    ui_set_source_value(ui, 1, 7, source_generations[1], 0x5503, NULL, host_ms);
     ui_set_source_value(ui, 0, 7, source_generations[0], 0x0c, &idle_rpm, host_ms);
+    assert(ui_page_readiness(ui, &wake_dual) == UI_PAGE_PARTIAL);
+    assert(ui_page_readiness(ui, &wake_alternative) == UI_PAGE_COMPLETE);
     tick(60);
-    assert(!ui->waiting_visible);
+    assert(!ui->waiting_visible && ui->display.page.metric_count == 1 && ui->display.rendered_available[0]);
+    assert(!strcmp(lv_label_get_text(ui->widgets.value_lbl), "675"));
+
+    /* A lone valid half of a dual page may wake after the short grace. */
+    ui_set_page(ui, &wake_dual);
+    tick(DISPLAY_IDLE_DATA_MS + 1);
+    assert(ui->waiting_visible);
+    ui_set_source_value(ui, 1, 7, source_generations[1], 0x5503, &park, host_ms);
+    tick(60);
+    assert(ui->waiting_visible);
+    tick(999);
+    assert(ui->waiting_visible);
+    tick(50);
+    assert(!ui->waiting_visible && ui->display.rendered_available[0] && !ui->display.rendered_available[1]);
+    ui_set_wake_page_callback(ui, NULL);
     ui_waiting_logo_enable(ui, false);
-    /* Live recording must preserve fractional data and reset unavailable runs. */
-    ui_page_t trend_page          = saved;
-    trend_page.renderer           = UI_RENDERER_TREND;
-    trend_page.metrics[0].minimum = 0;
-    trend_page.metrics[0].maximum = 100;
+    /* Intake keeps independent samples while another page is on screen. */
+    ui_page_t trend_page = {
+        .name         = "Intake",
+        .renderer     = UI_RENDERER_TREND,
+        .metric_count = 1,
+        .metrics      = {
+            {.pid = 15, .name = "Intake", .unit = "degC", .minimum = -40, .maximum = 215, .stale_after_ms = 4000}}};
+    double trend_value = 30.25;
+    ui_set_value(ui, 15, &trend_value);
+    tick(700);
     ui_set_page(ui, &trend_page);
-    double trend_value = 50.25;
-    for (unsigned i = 0; i < 3; i++)
+    ui_set_page(ui, &saved);
+    trend_value = 34.25;
+    ui_set_value(ui, 15, &trend_value);
+    tick(1200);
+    trend_value = 32.25;
+    ui_set_value(ui, 15, &trend_value);
+    ui_set_page(ui, &trend_page);
+    if (!host_psram_failure)
     {
-        ui_set_value(ui, 12, &trend_value);
-        tick(501);
+        assert(ui->display.trend_count == 3 && ui->trends->points[0].value == 30.25);
+        assert(ui->display.trend_samples[1] < ui->display.trend_samples[0] - 10);
+        assert(ui->trends->positions[2] == 144 && ui->trends->positions[1] - ui->trends->positions[0] <
+                                                      ui->trends->positions[2] - ui->trends->positions[1]);
+        assert(!lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
+        for (unsigned i = 0; i < 28; ++i)
+        {
+            trend_value = 32.25 + i / 5.f + sin(i / 4.f);
+            ui_set_value(ui, 15, &trend_value);
+            tick(1000);
+        }
+        capture(argv[1], "intake-window");
     }
-    assert(ui->display.trend_count == 3);
-    assert(fabsf(ui->display.trend_samples[TREND_CAPACITY - 1] - 14.925f) < .001f);
-    assert(!lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
-    if (!ui->display.trend_mask)
-    {
-        assert(ui->display.trend_points[0].x == 57 * px(144) / 59);
-        assert(ui->display.trend_points[2].x == px(144));
-    }
-    ui_set_value(ui, 12, NULL);
+    ui_set_value(ui, 15, NULL);
     tick(60);
     assert(ui->display.trend_count == 0);
     assert(lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
-    ui_set_value(ui, 12, &trend_value);
+    ui_set_value(ui, 15, &trend_value);
     tick(501);
-    assert(ui->display.trend_count == 1);
+    assert(ui->display.trend_count == (host_psram_failure ? 0 : 1));
     assert(lv_obj_has_flag(ui->widgets.trend, LV_OBJ_FLAG_HIDDEN));
-    tick(2001);
+    tick(4001);
     assert(ui->display.trend_count == 0);
+
+    ui_page_t rpm_ring          = saved;
+    rpm_ring.renderer           = UI_RENDERER_ARC;
+    rpm_ring.metrics[0].maximum = 16383.75;
+    double speed                = 4000;
+    ui_set_value(ui, 12, &speed);
+    ui_set_page(ui, &rpm_ring);
+    assert(lv_arc_get_value(ui->widgets.arc) == 500);
+    assert(lv_obj_has_flag(ui->widgets.redline_arc, LV_OBJ_FLAG_HIDDEN));
+    rpm_ring.rpm_redline = 5800;
+    ui_set_page(ui, &rpm_ring);
+    assert(lv_arc_get_value(ui->widgets.arc) == 615);
+    assert(!lv_obj_has_flag(ui->widgets.redline_arc, LV_OBJ_FLAG_HIDDEN));
+    tick(60);
+    capture(argv[1], "rpm-ring-redline");
     ui_set_page(ui, &saved);
-    assert(ui->display.trend_count == 0);
     presentation_regression(ui);
     ui_set_page(ui, &saved);
     /* Calibration pages exercise geometry/fonts outside the instrument compositor. */

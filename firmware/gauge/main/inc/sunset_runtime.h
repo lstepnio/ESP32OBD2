@@ -23,6 +23,7 @@ esp_err_t       sunset_runtime_save(bool     automatic,
                                     uint32_t utc,
                                     uint32_t expected_revision,
                                     uint64_t now_ms);
+void            sunset_runtime_restore_clock(uint32_t board_utc, uint64_t now_ms);
 void            sunset_runtime_sync(uint32_t utc, uint64_t now_ms);
 void            sunset_runtime_toggle(void);
 void            sunset_runtime_poll(uint64_t now_ms);
