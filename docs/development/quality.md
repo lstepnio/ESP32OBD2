@@ -128,3 +128,7 @@ existing host renderer. Check both entry and exit with the competing state
 still active. The connection review checks that action feedback hides
 connection icons, erases their pixels, and restores them when feedback ends.
 Run it in the existing firmware test lane.
+
+Preset-calculation fixtures set text through semantics without requesting IME focus.
+Keyboard interactions belong in keyboard-specific cases; delayed bring-into-view
+requests must not race a separate scrolling assertion.

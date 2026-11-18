@@ -60,11 +60,15 @@ class IdleActionsUiTest {
         compose.onNodeWithText("Pressure estimate").performScrollTo().performClick()
         compose.onNodeWithText("Save preset").performScrollTo().assertIsNotEnabled()
         for ((label, input) in listOf("Starting PSI" to "15", "Target PSI" to "35", "Measured from PSI" to "15", "Measured to PSI" to "35", "Measured fill time" to "8:00")) {
-            compose.onNodeWithText(label).performScrollTo().performTextInput(input)
+            // This fixture checks preset calculation, not IME behavior. Avoid focus-driven
+            // bring-into-view requests racing the following scroll assertion.
+            compose.onNodeWithText(label).performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString(input)) }
         }
         compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Estimated time · 8:00").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Time override").performScrollTo().performTextInput("4:30")
+        compose.onNodeWithText("Time override").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString("4:30")) }
         compose.closeKeyboardAndWaitForIdle()
         compose.onNodeWithText("Hide calibration").performScrollTo().performClick()
         compose.onNodeWithText("Estimated time · 8:00").performScrollTo()
