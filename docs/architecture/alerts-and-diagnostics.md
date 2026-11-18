@@ -98,9 +98,10 @@ observation represents the group; record count and first/last times inside detai
 recurrence, not distinct faults. Within loaded history, kept reports remain separately reachable history
 rows, respecting the same visibility filters, so newer observations cannot hide
 their detail or Unpin action. Unpinning restores ordinary grouping without deleting
-any evidence. Current warnings without codes are also coalesced
-per controller, retaining the highest severity (and existing order for ties), so a
-newer low-priority code-list event cannot hide an active MIL warning. Grouping does not edit storage, lifecycle, original context, filters
+any evidence. Warning-light alerts require a fresh, unfiltered fault code from the same
+controller. Code-less, stale-only and filtered-only warning records stay out of
+app alert surfaces and notifications. The gauge lamp also requires a visible
+code. Raw controller status remains available in diagnostics. Grouping does not edit storage, lifecycle, original context, filters
 or reports, and never borrows another observation's codes. A later identified code
 is its own evidence, not a retroactive diagnosis of an earlier unattributed warning.
 Simulated diagnostic records retain an explicit marker in list summaries as well
@@ -576,9 +577,7 @@ Resolve policy using the recorded vehicle, not whichever car happens to be selec
 Deduplicate codes across categories within a controller, never across controllers or
 gauges. A mixed episode keeps its visible remainder; diagnostic-only episodes with
 complete attributable hidden-only evidence disappear. A threshold/provider episode
-survives hidden incidental context. Old generic MIL episodes without enough recorded
-code/count evidence may remain generic, without hidden strings or totals. Missing,
-truncated or mismatched evidence cannot invent attribution.
+survives hidden incidental context. Missing, truncated or mismatched evidence cannot invent attribution.
 
 Saving a rule changes App presentation immediately after the existing durable commit.
 For a clean, authenticated, exactly acknowledged setup, an isolated alert/filter edit

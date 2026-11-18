@@ -63,34 +63,31 @@ class AlertVisibilityTest {
         assertTrue(projected.context.getJSONObject("diagnostics").getJSONObject("ECM").getBoolean("milOn"))
     }
 
-    @Test fun oldUnattributableMilRemainsGenericAndPartialEvidenceCannotProveOmission() {
+    @Test fun warningNeedsAFreshVisibleCodeEvenWithoutCompleteAttribution() {
         val old = entry(context("P0700", count = false), key = 33)
-        val projected = AlertVisibility.project(old, rules)!!
-        assertFalse(projected.context.toString().contains("P0700"))
+        assertNull(AlertVisibility.project(old, rules))
         val partial = entry(context("P0700"))
         partial.context.getJSONObject("diagnostics").getJSONObject("TCM").getJSONArray("categories")
             .getJSONObject(0).put("truncated", true)
         assertNotNull(AlertVisibility.project(partial, rules))
         assertNull(AlertVisibility.project(entry(context("P0700"), key = 33), rules))
-        val unknown = AlertVisibility.project(entry(JSONObject(), key = 33), rules)!!
-        assertTrue(unknown.event.value.isNaN())
-        assertEquals("Transmission warning", unknown.event.label)
-        assertFalse(alertJson(unknown.event).toString().contains("NaN"))
-        assertTrue(alertFromJson(alertJson(unknown.event)).value.isNaN())
+        assertNull(AlertVisibility.project(entry(JSONObject(), key = 33), emptyList()))
+        val mixed = entry(context("P0700", "P0730", count = false), key = 33)
+        assertNotNull(AlertVisibility.project(mixed, rules))
+        mixed.context.getJSONObject("diagnostics").getJSONObject("TCM").getJSONArray("categories")
+            .getJSONObject(0).put("fresh", false)
+        assertNull(AlertVisibility.project(mixed, rules))
     }
 
-    @Test fun milAttributionRequiresExactStoredCountAndAllowsUnsupportedCategories() {
+    @Test fun hiddenOnlyMilStaysQuietWithUnsupportedCategoriesOrMismatchedCount() {
         val raw = entry(context("P0700"), key = 33)
         val snapshot = raw.context.getJSONObject("diagnostics").getJSONObject("TCM")
         snapshot.getJSONArray("categories").getJSONObject(1)
             .put("availability", "Unsupported").put("fresh", false)
         assertNull(AlertVisibility.project(raw, rules))
         snapshot.put("reportedCount", 2)
-        val mismatch = AlertVisibility.project(raw, rules)!!
+        assertNull(AlertVisibility.project(raw, rules))
         assertNotNull(AlertVisibility.project(raw.copy(event = raw.event.copy(key = 35)), rules))
-        assertTrue(mismatch.event.value.isNaN())
-        assertTrue(mismatch.context.getJSONObject("diagnostics").getJSONObject("TCM").getBoolean("milOn"))
-        assertFalse(alertJson(mismatch.event).toString().contains("P0700"))
     }
 
     @Test fun unscopedProviderTextCannotBypassHiddenContextPolicy() {
