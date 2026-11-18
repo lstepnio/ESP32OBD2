@@ -78,6 +78,6 @@ diagnostic_filter_result_t diagnostic_filter_project(const uint8_t              
      * that can explain/filter it. This is pending presentation, not ECU Off or
      * all-filtered proof. A decoded unfiltered fault needs no complete scan. */
     out.show_mil =
-        (p[2] & 3) == 3 && p[3] == 1 && p[23] == 1 && !out.suppress_mil && (out.visible_count > 0 || complete);
+        (p[2] & 3) == 3 && p[3] == 1 && p[23] == 1 && !out.suppress_mil && out.visible_count > 0;
     return out;
 }

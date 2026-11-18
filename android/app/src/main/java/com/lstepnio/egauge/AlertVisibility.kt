@@ -23,6 +23,8 @@ object AlertVisibility {
         val snapshot = recorded.optJSONObject("diagnostics")?.optJSONObject(source)
         val codes = codes(snapshot)
         val visible = codes.filterNot { DiagnosticCodeFilters.hides(source, it, rules) }
+        // A lamp bit alone does not identify a fault that the driver can act on.
+        if (event.key in 32..33 && !hasFreshVisibleCode(snapshot, source, rules)) return null
         val hidden = codes.size != visible.size
         val complete = complete(snapshot)
         val attributable = if (event.key < 34) {
@@ -127,6 +129,22 @@ object AlertVisibility {
         32, 34 -> "ECM"
         33, 35 -> "TCM"
         else -> null
+    }
+
+    private val faultCode = Regex("[PCBU][0-3][0-9A-F]{3}")
+
+    private fun hasFreshVisibleCode(snapshot: JSONObject?, source: String, rules: List<DiagnosticCodeFilter>): Boolean {
+        val categories = snapshot?.optJSONArray("categories") ?: return false
+        return (0 until categories.length()).any { index ->
+            val category = categories.optJSONObject(index) ?: return@any false
+            if (category.optString("availability") != "Available" || !category.optBoolean("fresh")) return@any false
+            val codes = category.optJSONArray("codes") ?: return@any false
+            (0 until codes.length()).any { codeIndex ->
+                val code = codes.optString(codeIndex).uppercase(Locale.ROOT)
+                faultCode.matches(code) && code != "P0000" &&
+                    !DiagnosticCodeFilters.hides(source, code, rules)
+            }
+        }
     }
 
     private fun codes(snapshot: JSONObject?): List<String> {

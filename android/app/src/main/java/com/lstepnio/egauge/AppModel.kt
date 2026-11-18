@@ -677,7 +677,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             gauge,
                             live,
                             connectionForeground,
-                            raw != null && visible == null,
+                            visible == null && (raw != null || event.key in 32..33),
                             displaySettings?.takeIf { it.version >= 2 }?.units ?: presentationPreferences.measurementSystem,
                             visible?.let { recordedFaultCodes(it.context) }.orEmpty()
                         )
