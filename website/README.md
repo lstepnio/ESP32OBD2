@@ -223,6 +223,13 @@ status here.
 
 ## Public offer
 
+The OLED product card includes a silent, 13-second screen simulation. It composites
+the published 466 × 466 startup, dual arc, coolant arc and numeric RPM renders
+from `docs/assets/gauge/` into the USB-connected OLED hero artwork. The sample
+readings and cuts are illustrative. Playback starts on request, with native controls,
+a poster and an adjacent description. The website builder fingerprints both media
+files with the other static assets.
+
 The shop leads with the enclosed OLED. The hero's secondary link goes directly to
 the free LCD DIY section, with vendor sourcing, free manual flashing and source
 access. Keep the free offer scoped to LCD firmware; hardware, assisted browser

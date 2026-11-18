@@ -155,8 +155,6 @@
 .store-grid { grid-template-columns: 1fr; gap: 36px; }
 .store-card { display: grid; grid-template-columns: .85fr 1.15fr; }
 .store-card-featured .store-art { grid-template-columns: 1fr; align-content: center; }
-.store-card-featured .store-art figure:first-child .store-device { width: min(100%, 390px); }
-.store-card-featured .store-art figure + figure { display: none; }
 .store-art { align-content: center; }
 .store-art figcaption { display: none; }
 .store-copy .eyebrow { font-size: 10px; }
@@ -197,7 +195,6 @@
   .hero-photo { min-height: 0; }
   .hero-photo figcaption { padding: 12px; font-size: 11px; }
   .store-card { grid-template-columns: 1fr; }
-  .store-card-featured .store-art figure:first-child .store-device { width: min(70vw, 270px); }
   .lcd-diy-card .store-art { padding-block: 8px; }
   .lcd-diy-card .store-device { width: min(37vw, 180px); }
   .store-copy { padding: 24px; }
@@ -266,3 +263,6 @@
   .offroad-summary, .progress-grid { grid-template-columns: 1fr; gap: 24px; }
   .action-screen-examples figure { width: min(100%, 145px); }
 }
+
+.oled-product-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 8px; background: #101512; }
+.store-art-oled #oled-video-description { margin: 8px 0 0; font-size: 13px; }
