@@ -111,8 +111,9 @@ Targeted post-install checks passed authenticated connection, automatic settings
 refresh, icons Off/On, Day 100%, Night 10%, and retained configuration. App
 preferences and every logical alert-history table matched the original backup
 after replacement. Final comparison retained all 64 events, 44 episodes, 28
-configuration records and zero reports exactly. The two cursor boot fields advanced
-for the verified firmware restarts; keys and sequence fields were retained. Only the
+configuration records and zero reports exactly. The two cursor boot/sequence
+checkpoints changed for the verified firmware restarts; scope keys and drop counts
+were retained. Only the
 intentional OLED-to-LCD selection changed in setup, and the signed catalog trust
 checkpoint advanced to generation 68. The notification policy matched exactly.
 Original Pixel wake settings and the exact original test APK were restored; temporary
