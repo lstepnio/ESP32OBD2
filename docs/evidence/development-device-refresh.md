@@ -86,9 +86,9 @@ and the existing daily publication policy remain unchanged.
 The owner authorized cleanup and current App/firmware delivery, then explicitly
 approved LCD dev.88 publication. Sources and acceptance:
 
-- App dev.59 runtime source `c757f2e`; the private-OTA-provisioned APK retained the
+- App dev.59 runtime source `dbd1e30`; the private-OTA-provisioned APK retained the
   installed certificate. Exact pulled-back APK SHA-256:
-  `8fa3ee3a83bad423e880a5f7ce6870dbe74bb3be8508e2edba0cdadd9eacf1e8`.
+  `1499ba3cbc6d72bb7c2d6668f59e0ad751ad1eb5c81b4c18f435d60f26ec637c`.
 - Reference LCD [dev.88](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.88)
   was published from `555d641102c710db38ab82b7ee05817e83307481` after all four
   [quality lanes passed](https://github.com/lstepnio/ESP32OBD2/actions/runs/44381467909).
@@ -120,10 +120,13 @@ Original Pixel wake settings and the exact original test APK were restored; temp
 delivery files were removed. No vehicle command or recovery-record clearing occurred.
 
 Local host/native/configuration/render/fallback tests and App unit/build gates
-passed. Four idle-preset and nine dashboard-editor emulator cases passed. Review
+passed. Four idle-preset and ten dashboard-editor emulator cases passed. Review
 found late-code visibility and unsupported redline editing defects; the App fixes
 preserve immutable entry evidence, scope bounded live notification deferral and
-keep virtual redline editing independent. The final PR carries their CI outcome.
+keep virtual redline editing independent. Additional regressions fence source receipt age, disconnected/simulated/revised
+snapshots and phone-only capacity independently of the selected board. The final
+PR carries their CI outcome. The owner confirmed the updated LCD layout and
+swipes were clean, with no page dots.
 A later CI dependency check found the Plugin Portal's alternate Kotlin marker POM;
 Google/Maven Central remain the verified origins, with checksums unchanged.
 
