@@ -42,7 +42,12 @@
         </div>
       </div>
       <figure class="hero-art hero-photo">
-        <img src="{{ASSET_PREFIX}}/hardware/oled-usb-hero.webp" width="1536" height="1024" fetchpriority="high" alt="Enclosed eGauge OLED with a USB-C cable, showing gear and engine speed">
+        <video class="oled-hero-video" controls muted loop playsinline preload="none" width="1920" height="1080"
+               poster="{{ASSET_PREFIX}}/hardware/egauge-oled-poster.jpg"
+               aria-label="OLED screen simulation showing startup, gear and RPM, and coolant temperature">
+          <source src="{{ASSET_PREFIX}}/hardware/egauge-oled-preview.mp4" type="video/mp4">
+          <a href="{{ASSET_PREFIX}}/hardware/egauge-oled-preview.mp4">Watch the OLED screen simulation</a>
+        </video>
         <figcaption>1.75″ AMOLED. Touch enabled. Built around your vehicle.</figcaption>
       </figure>
     </section>
@@ -56,14 +61,20 @@
       <div class="store-grid">
         <article class="store-card store-card-featured" id="oled-bundle">
           <div class="store-art store-art-oled">
-            <video class="oled-product-video" controls playsinline preload="none" width="1920" height="1080"
-                   poster="{{ASSET_PREFIX}}/hardware/egauge-oled-poster.jpg"
-                   aria-label="eGauge OLED screen simulation"
-                   aria-describedby="oled-video-description">
-              <source src="{{ASSET_PREFIX}}/hardware/egauge-oled-preview.mp4" type="video/mp4">
-              <a href="{{ASSET_PREFIX}}/hardware/egauge-oled-preview.mp4">Watch the OLED screen simulation</a>
-            </video>
-            <p id="oled-video-description">13-second screen simulation showing startup, gear and RPM, and coolant temperature.</p>
+            <figure>
+              <div class="store-device store-device-oled">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED board in a black protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-dual-arc.png" width="466" height="466" alt="OLED viewed face-on with gear and engine speed">
+              </div>
+              <figcaption>Face-on</figcaption>
+            </figure>
+            <figure>
+              <div class="store-device store-device-oled store-device-tilted">
+                <img class="store-device-body" src="{{ASSET_PREFIX}}/hardware/oled.webp" width="640" height="640" alt="Waveshare AMOLED protective case" aria-hidden="true">
+                <img class="store-device-screen" src="{{ASSET_PREFIX}}/gauge/oled-numeric.png" width="466" height="466" alt="OLED viewed at an angle with a large engine speed reading and small connection icons">
+              </div>
+              <figcaption>Angled</figcaption>
+            </figure>
           </div>
           <div class="store-copy">
             <p class="eyebrow">THE COMPLETE OLED GAUGE</p>

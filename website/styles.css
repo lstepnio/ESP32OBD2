@@ -264,5 +264,9 @@
   .action-screen-examples figure { width: min(100%, 145px); }
 }
 
-.oled-product-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 8px; background: #101512; }
-.store-art-oled #oled-video-description { margin: 8px 0 0; font-size: 13px; }
+.store-card-featured .store-art figure:first-child .store-device { width: min(100%, 390px); }
+.store-card-featured .store-art figure + figure { display: none; }
+@media (max-width: 760px) {
+  .store-card-featured .store-art figure:first-child .store-device { width: min(70vw, 270px); }
+}
+.oled-hero-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #101512; }
