@@ -262,12 +262,26 @@ class WebsiteMetadataTests(unittest.TestCase):
                 ("lcd-startup", 240),
                 ("oled-arc", 466),
                 ("oled-dual-arc", 466),
-                ("oled-numeric", 466),
                 ("oled-startup", 466),
             ):
                 with self.subTest(name=name):
                     png = (output / prefix.lstrip("/") / "gauge" / f"{name}.png").read_bytes()
                     self.assertEqual(struct.unpack(">II", png[16:24]), (dimension, dimension))
+
+    def test_hero_packages_the_video_and_its_native_oled_inputs_exist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            manifest = site.build(output, metadata_only=True)
+            html = (output / "index.html").read_text()
+            prefix = manifest["assetPrefix"]
+            for name in ("egauge-oled-preview.mp4", "egauge-oled-poster.jpg"):
+                self.assertIn(f'{prefix}/hardware/{name}"', html)
+                self.assertIn(f"{prefix.lstrip('/')}/hardware/{name}", manifest["files"])
+        provenance = json.loads((ROOT / "website/hardware/hero-provenance.json").read_text())
+        for source in provenance["studioRevision"]["displayInputs"]:
+            with self.subTest(source=source):
+                png = (ROOT / source).read_bytes()
+                self.assertEqual(struct.unpack(">II", png[16:24]), (466, 466))
 
     def test_missing_claim_scope_or_evidence_is_rejected(self):
         content = json.loads((ROOT / "website/content.json").read_text())
