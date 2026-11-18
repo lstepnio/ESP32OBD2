@@ -240,7 +240,7 @@ material has a project-wide open-source license before one is selected.
 Product cards keep price, tax/shipping, OLED lead time and adapter exclusion close
 to the request controls. Optional paid LCD setup has two visible price links below
 the free path: a preflashed board or browser flashing with limited setup support.
-Comparison and exact dimensions/CAD are visible by default in a collapsible section.
+Comparison and exact dimensions/CAD sit behind the hardware disclosure.
 Distinguish outer
 face/case diameter from the manufacturer's viewing opening; neither is a mounting
 cutout specification. Direct links to engineering details open the disclosure.
@@ -258,7 +258,7 @@ installed capabilities, private evaluation, and the proposed 5/12-page limits.
 Board cutouts are AI-assisted adaptations of the exact
 [Waveshare LCD photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-lcd-1.28-1.jpg)
 and [enclosed AMOLED photo](https://www.waveshare.com/media/catalog/product/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg).
-The shop pairs a face-on and angled view for each board. The comparison uses
+The shop shows one large product view at a time. Both products share a fixed image ratio, a keyboard-operable view selector, an offer and its primary action. On wide screens the offers align side by side; on phones each product stays together. The comparison uses
 the nominal panel diameters, 1.28″ and 1.75″, for relative scale. Both panels use
 matched example readings rendered by their own production UI profiles. The
 OLED entries in [capture provenance](../docs/assets/gauge/capture-provenance.json)
