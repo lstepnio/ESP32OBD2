@@ -148,6 +148,7 @@ object AlertVisibility {
     private val faultCode = Regex("[PCBU][0-3][0-9A-F]{3}")
 
     private fun hasFreshVisibleCode(snapshot: JSONObject?, source: String, rules: List<DiagnosticCodeFilter>): Boolean {
+        if (snapshot?.has("connected") == true && !snapshot.optBoolean("connected")) return false
         val categories = snapshot?.optJSONArray("categories") ?: return false
         return (0 until categories.length()).any { index ->
             val category = categories.optJSONObject(index) ?: return@any false

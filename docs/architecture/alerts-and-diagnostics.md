@@ -647,3 +647,8 @@ current; the stored entry snapshot remains immutable. A live background transiti
 waiting for codes can notify once when an unfiltered code arrives. Deferred entries
 are bounded in memory and retired with the gauge session. Filter-policy reveals and
 historical replay never create new notifications.
+
+Live diagnostic context is normalized with each controller's own monotonic receipt
+and `diagnosticCategoryAgeCurrent()`. Successful alert polling never refreshes a
+cached diagnostic receipt. Disconnected, simulated, wrong-source or wrong-revision
+snapshots cannot authorize live warning visibility or deferred notifications.

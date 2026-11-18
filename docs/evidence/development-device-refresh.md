@@ -131,8 +131,9 @@ Cleanup pruned six nonexistent public and one nonexistent private worktree
 references, and removed one merged inactive local branch. Thirty existing public
 worktrees, including six dirty ones, were preserved. Incorporated public PRs
 #138/#146/#166/#167 are superseded by #172; #159's historical evidence is retained
-above. Private #18 is superseded by merged #27. Unfinished commerce/website PRs
-#152/#162/#171 and their source branches are preserved, not silently integrated.
+above. Private #18 is superseded by merged #27. Unfinished commerce PRs #152/#162 and their source branches are preserved, not
+silently integrated. Website PR #171 merged separately; its current main changes
+are included when updating the consolidation base.
 
 Remaining physical gates: current-build panel/touch and OLED button observations,
 OBD icon disappearance/reappearance on both boards, independent ECM/TCM recovery,

@@ -79,6 +79,14 @@ class UnifiedDashboardUiTest {
         capture("oled-200-percent")
     }
 
+    @Test fun phoneOnlyCanAddBeyondTheConnectedLcdLimit() {
+        val pages = (1..5).map { pageUi(GaugePageDraft("page.$it", "RPM", GaugeLayout.Numeric, listOf("rpm"))) }
+        compose.setContent {
+            EGaugeTheme { DashboardEditorScreen(state().copy(pages = pages, pageLimit = 5), 2, {}, {}, actions(), phoneOnly = true) }
+        }
+        compose.onNodeWithText("Add page").performScrollTo().assertIsEnabled()
+    }
+
     @Test fun unsupportedRedlineIsHiddenButAnExistingValueCanBeRemoved() {
         val draft = mutableStateOf(GaugePageDraft("rpm", "RPM", GaugeLayout.Arc, listOf("rpm")))
         compose.setContent {

@@ -238,3 +238,7 @@ Physical RPM-redline editing requires the advertised `rl:1` capability. An unsup
 saved value can be removed from the draft without sending it; the phone-only virtual
 gauge remains independently editable. A firmware update is not suggested when the
 board intentionally omits this optional capability to retain its existing wire budget.
+
+The negotiated board capacity applies to physical editing and deployment only.
+Phone-only controls and Add page mutations use the phone draft capacity of twelve,
+regardless of a remembered LCD or OLED connection.

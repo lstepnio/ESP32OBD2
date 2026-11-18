@@ -516,39 +516,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 terminal = true
             )
     }
-    private fun diagnosticContext(): String = org.json.JSONObject().apply {
-        diagnosticsBySource.forEach { (source, data) ->
-            put(
-                source,
-                org.json.JSONObject().put("milOn", data.milOn)
-                    .put(
-                        "milFresh",
-                        data.milFresh
-                    ).put("connected", data.connected).put("responder", data.responder)
-                    .put("reportedCount", data.reportedCount).put("milKnown", data.milKnown)
-                    .put("milAvailability", data.milAvailability.name)
-                    .put(
-                        "categories",
-                        org.json.JSONArray().apply {
-                            data.categories?.forEach { category ->
-                                put(
-                                    org.json.JSONObject().put(
-                                        "name",
-                                        category.name
-                                    ).put("availability", category.availability.name)
-                                        .put(
-                                            "fresh",
-                                            category.fresh
-                                        ).put("codes", org.json.JSONArray(category.codes))
-                                        .put("known", category.known).put("truncated", category.truncated)
-                                        .put("ageMs", category.ageMs)
-                                )
-                            }
-                        }
-                    )
-            )
-        }
-    }.toString()
+    private fun diagnosticContext(): String = diagnosticContextSnapshot(
+        diagnosticsBySource,
+        diagnosticsCheckedAt,
+        android.os.SystemClock.elapsedRealtime(),
+        activeDocument?.revision
+    ).toString()
+
     private suspend fun pollAlerts(
         client: GaugeConfigTransferClient,
         device: BluetoothDevice
@@ -3687,11 +3661,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     internal val editorPageLimit: Int
-        get() = capabilities?.maxPages?.takeIf { it > 0 } ?: MAX_DASHBOARD_PAGES
+        get() = dashboardEditorPageLimit(capabilities?.maxPages)
 
-    fun addPage(pidId: String = "rpm") {
+    fun addPage(pidId: String = "rpm", phoneOnly: Boolean = false) {
         val working = editorDraft
-        if (working.pages.size >= editorPageLimit ||
+        if (working.pages.size >= dashboardEditorPageLimit(capabilities?.maxPages, phoneOnly) ||
             pidId !in ConfigurationProjector.pagePidIds(working.source)
         ) {
             return

@@ -82,7 +82,7 @@ fun DashboardEditorScreen(
             EmptyState("No pages yet", "Add a reading to start your gauge.")
         }
 
-        destination == 2 -> PageManager(state, ::done, { picker = "add" }, actions)
+        destination == 2 -> PageManager(state.copy(pageLimit = com.lstepnio.egauge.dashboardEditorPageLimit(state.pageLimit, phoneOnly)), ::done, { picker = "add" }, actions)
 
         destination == 3 -> AlertManager(state, ::done, ::editAlert, { onDestination(5) })
 

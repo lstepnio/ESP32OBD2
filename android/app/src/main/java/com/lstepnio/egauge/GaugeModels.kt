@@ -1,6 +1,7 @@
 package com.lstepnio.egauge
 
 internal const val MAX_DASHBOARD_PAGES = 12
+internal fun dashboardEditorPageLimit(physicalCapacity: Int?, phoneOnly: Boolean = false): Int = if (phoneOnly) MAX_DASHBOARD_PAGES else physicalCapacity?.takeIf { it > 0 } ?: MAX_DASHBOARD_PAGES
 
 /** All catalog rows below are examples, never vehicle capability evidence. */
 data class PidExample(

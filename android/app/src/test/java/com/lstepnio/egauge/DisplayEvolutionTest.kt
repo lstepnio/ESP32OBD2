@@ -137,4 +137,11 @@ class DisplayEvolutionTest {
         assertFalse(GaugeProtocolCodec.isProtectedStatusFrame(off.copyOf(5)))
         assertTrue(byteArrayOf(0x6f, 1, 0x34, 0x12, 0, 0).contentEquals(GaugeProtocolCodec.connectionIconsWrite(true, 0x1234)))
     }
+
+    @Test fun phoneOnlyCapacityIsIndependentOfTheSelectedPhysicalBoard() {
+        assertEquals(5, dashboardEditorPageLimit(5))
+        assertEquals(12, dashboardEditorPageLimit(12))
+        assertEquals(12, dashboardEditorPageLimit(5, phoneOnly = true))
+        assertEquals(12, dashboardEditorPageLimit(null, phoneOnly = true))
+    }
 }
