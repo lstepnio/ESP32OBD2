@@ -135,10 +135,10 @@ requests only foreground location.
 The gauge estimates solar daylight from UTC and the saved location using
 [NOAA's solar-position equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
 The schedule tracks seasonal daylight, including polar day or night. It runs
-locally once the App has synced the clock. On a cold boot without a valid
-retained clock, the gauge uses the last saved Day/Night mode until the App
-reconnects. A board with a supported battery-backed RTC can resume the
-schedule at boot. Update the saved location in Settings after travel.
+locally once the App has synced the clock. At boot, the gauge prefers a valid
+board RTC, then uses ESP32 system time if it survived the restart. A complete
+power loss still requires a working backup-powered RTC or another phone sync.
+Without valid time the gauge uses the last saved Day/Night mode. Update the saved location in Settings after travel.
 
 On the OLED adapter, a short release of the right-side BOOT key with USB-C
 at the bottom switches Day/Night. The override stays active through the next

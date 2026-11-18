@@ -1371,9 +1371,9 @@ static void init_config(void)
     ESP_ERROR_CHECK(display_settings_init(0, DISPLAY_DAY_BRIGHTNESS_DEFAULT, 0));
     sunset_runtime_init();
     gauge_board_initialize();
-    const gauge_board_t *board = gauge_board_description();
-    if (board->read_utc)
-        sunset_runtime_sync(board->read_utc(), (uint64_t)(esp_timer_get_time() / 1000));
+    const gauge_board_t *board     = gauge_board_description();
+    uint32_t             board_utc = board->read_utc ? board->read_utc() : 0;
+    sunset_runtime_restore_clock(board_utc, (uint64_t)(esp_timer_get_time() / 1000));
     gauge_display_set_rotation((lv_display_rotation_t)display_settings_boot_rotation());
     if (lvgl_port_lock(portMAX_DELAY))
     {
