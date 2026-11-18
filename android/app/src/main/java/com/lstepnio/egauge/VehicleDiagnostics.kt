@@ -32,3 +32,45 @@ fun validateDiagnosticScope(
         }
     }
 }
+
+/** Normalize cached evidence against its own monotonic receipt, independently of alert polling. */
+internal fun diagnosticContextSnapshot(
+    snapshots: Map<String, GaugeConfigTransferClient.Diagnostics>,
+    receivedAt: Map<String, Long>,
+    now: Long,
+    revision: Long?
+): org.json.JSONObject = org.json.JSONObject().apply {
+    snapshots.forEach { (source, data) ->
+        if (data.source != source || data.simulated || (data.revision != null && data.revision != revision)) return@forEach
+        val elapsed = receivedAt[source]?.let { now - it } ?: Long.MAX_VALUE
+        put(
+            source,
+            org.json.JSONObject().put("milOn", data.milOn)
+                .put(
+                    "milFresh",
+                    data.milFresh
+                ).put("connected", data.connected).put("responder", data.responder)
+                .put("reportedCount", data.reportedCount).put("milKnown", data.milKnown)
+                .put("milAvailability", data.milAvailability.name)
+                .put(
+                    "categories",
+                    org.json.JSONArray().apply {
+                        data.categories?.forEach { category ->
+                            put(
+                                org.json.JSONObject().put(
+                                    "name",
+                                    category.name
+                                ).put("availability", category.availability.name)
+                                    .put(
+                                        "fresh",
+                                        data.connected && diagnosticCategoryAgeCurrent(category, elapsed)
+                                    ).put("codes", org.json.JSONArray(category.codes))
+                                    .put("known", category.known).put("truncated", category.truncated)
+                                    .put("ageMs", category.ageMs)
+                            )
+                        }
+                    }
+                )
+        )
+    }
+}

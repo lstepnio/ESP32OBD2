@@ -40,7 +40,7 @@ object ProfileDocumentCodec {
                 item.optJSONArray("pageOrder")?.let { order ->
                     (0 until order.length()).map { order.getString(it) }.also { ids ->
                         require(
-                            ids.size <= 10 && ids.distinct().size == ids.size &&
+                            ids.size <= MAX_DASHBOARD_PAGES && ids.distinct().size == ids.size &&
                                 ids.all {
                                     it.matches(Regex("[a-z][a-z0-9._-]{0,63}"))
                                 }
@@ -71,9 +71,9 @@ object ProfileDocumentCodec {
                     if (schemaVersion >=
                         9
                     ) {
-                        0..10
+                        0..MAX_DASHBOARD_PAGES
                     } else {
-                        1..10
+                        1..MAX_DASHBOARD_PAGES
                     }
                     )
             ) { "Profile page count is invalid" }
@@ -99,7 +99,11 @@ object ProfileDocumentCodec {
                 val arcIndex = if (schemaVersion >= 18) page.optInt("arcMetricIndex", 0) else 0
                 require(arcIndex in 0..1 && (pageLayout == GaugeLayout.DualArc || arcIndex == 0))
                 require(pageLayout != GaugeLayout.DualArc || demoCatalog.first { it.id == pagePids[arcIndex] }.alertKind == "numeric")
-                GaugePageDraft(pageId, pageName, pageLayout, pagePids, arcIndex)
+                val redline = page.opt("rpmRedline")
+                require(redline == null || (redline is Int && redline in rpmRedlineRange))
+                GaugePageDraft(pageId, pageName, pageLayout, pagePids, arcIndex, redline).also {
+                    require(it.rpmRedline == null || it.isRpmRing)
+                }
             }
         } else {
             defaultGaugePages(pidId, layout)
@@ -230,8 +234,9 @@ object ProfileDocumentCodec {
     }
 
     private fun draftJson(draft: Draft): JSONObject = JSONObject().also {
-        require(draft.pages.size <= 10)
+        require(draft.pages.size <= MAX_DASHBOARD_PAGES)
         draft.pages.forEach { page ->
+            require(page.rpmRedline == null || (page.isRpmRing && page.rpmRedline in rpmRedlineRange))
             require(page.arcMetricIndex in 0..1 && (page.layout == GaugeLayout.DualArc || page.arcMetricIndex == 0))
             require(
                 page.layout != GaugeLayout.DualArc || (
@@ -255,7 +260,10 @@ object ProfileDocumentCodec {
                         JSONObject().put("id", page.id).put("name", page.name)
                             .put("layout", page.layout.name)
                             .put("pidIds", JSONArray(page.pidIds))
-                            .also { if (page.layout == GaugeLayout.DualArc) it.put("arcMetricIndex", page.arcMetricIndex) }
+                            .also {
+                                if (page.layout == GaugeLayout.DualArc) it.put("arcMetricIndex", page.arcMetricIndex)
+                                page.rpmRedline?.let { redline -> it.put("rpmRedline", redline) }
+                            }
                     )
                 }
             }

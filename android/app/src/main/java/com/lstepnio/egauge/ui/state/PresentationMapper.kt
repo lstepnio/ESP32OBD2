@@ -28,29 +28,31 @@ fun pageUi(page: GaugePageDraft, system: MeasurementSystem = MeasurementSystem.M
         page.layout,
         ReadingPreviewUi(
             readingName(reading.id),
-            MeasurementUnits.displayValue(reading.demoValue, reading.unit, system),
+            MeasurementUnits.displayReading(reading.demoValue, reading.unit, system, reading.id),
             MeasurementUnits.label(reading.unit, system),
             PreviewLayout.valueOf(page.layout.name),
             secondaryName = secondary?.let {
                 readingName(it.id)
             },
             secondaryValue = secondary?.let {
-                MeasurementUnits.displayValue(it.demoValue, it.unit, system)
+                MeasurementUnits.displayReading(it.demoValue, it.unit, system, it.id)
             },
             arcMetricIndex = page.arcMetricIndex,
             primaryGear = reading.alertKind == "gear",
             secondaryGear = secondary?.alertKind == "gear",
             arcFraction = page.pidIds.getOrNull(page.arcMetricIndex)?.let { id ->
                 demoCatalog.first { it.id == id }.let { metric ->
-                    metric.demoValue.replace(",", "").toDoubleOrNull()?.let { ((it - metric.minimum) / (metric.maximum - metric.minimum)).toFloat().coerceIn(0f, 1f) }
+                    metric.demoValue.replace(",", "").toDoubleOrNull()?.let { readingFraction(id, it, metric.minimum, metric.maximum, page.rpmRedline) }
                 }
             } ?: 0f,
+            rpmRedlineFraction = rpmRedlineFraction(page.rpmRedline),
             secondaryUnit = secondary?.let {
                 MeasurementUnits.label(it.unit, system)
             }
         ),
         secondary?.id,
-        page.arcMetricIndex
+        page.arcMetricIndex,
+        page.rpmRedline
     )
 }
 
@@ -101,6 +103,9 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
     ) {
         add("Update gauge firmware to use CEL code filters.")
     }
+    if (caps != null && draft.pages.any { it.rpmRedline != null } && !caps.rpmRedlineSupported) {
+        add("Update the gauge before sending the RPM redline")
+    }
     if (caps != null && requiresOxygenVoltageFirmware(draft) && !caps.oxygenVoltageSupported) {
         add("Update the gauge before sending oxygen sensor voltage readings")
     }
@@ -137,7 +142,7 @@ fun presentationBlockers(draft: Draft, caps: CapabilitySnapshot?): List<String> 
         if (draft.pages.size >
             it.maxPages
         ) {
-            add("Your gauge supports ${it.maxPages} pages. Remove an extra page.")
+            add("Your gauge supports ${it.maxPages} pages. Reduce the page count before sending.")
         }
         val unsupported = draft.pages.map { it.layout }.distinct().filter { layout ->
             layout !in
@@ -463,6 +468,8 @@ fun AppViewModel.presentationState(nowElapsedMs: Long): CompanionUiState {
                 "Jump to $name · ${action.count} swipes up within ${action.windowMs / 1000} seconds"
             },
             editingIssue = pageEditError,
+            pageLimit = editorPageLimit,
+            rpmRedlineSupported = capabilities?.rpmRedlineSupported == true,
             reviewAlerts = transmittedDraft.alerts.filter { it.enabled }.map { alertUi(it, system) },
             idleCoolantWarning = transmittedDraft.actions.any { it.type == PageActionType.VehicleActions } && idleCoolantLimitC(transmittedDraft.alerts) == null,
             reviewNotice = if (transmittedDraft.diagnosticFilters != sentDraft?.diagnosticFilters.orEmpty()) {

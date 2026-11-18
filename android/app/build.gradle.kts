@@ -25,8 +25,8 @@ android {
         applicationId = "com.lstepnio.egauge"
         minSdk = 29
         targetSdk = 36
-        versionCode = 58
-        versionName = "0.2.0-dev.58"
+        versionCode = 59
+        versionName = "0.2.0-dev.59"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "PRIVATE_OTA_PROVISIONED", "false")
         buildConfigField("String", "PLAY_BILLING_PUBLIC_KEY", "\"$playBillingPublicKey\"")

@@ -439,7 +439,14 @@ per kind; no new transport or polling worker is added.
 
 ## Display capacity and Dual + arc extensions
 
-Document-mode capability `mp:10` advertises the ten-page bound and `dx:1` advertises
+Capability `rl:1` permits the optional integer `rpmRedline` on an Arc or
+Dual + arc page when its ring uses `engine.rpm`. Valid values are 1,000 through
+16,000 RPM. Missing fields use the default display scale and omit the red zone.
+The existing 255-byte capability limit takes priority: fully featured Auto/Wi-Fi targets retain sunset and oxygen support, and omit `rl` if the additional field does not fit. The App only offers redline editing when `rl:1` is present.
+The field changes presentation only. The [display contract](../architecture/display-experience.md#rpm-ring-and-trend-history)
+defines rendering and history.
+
+Capability `mp` advertises the board limit for new dashboards (5 for LCD, 12 for OLED). `dx:1` advertises
 Dual + arc. `cfg:7` and schema version 2 are unchanged. Absence retains legacy page
 limits and blocks the new renderer before transfer. `dualArc` requires two distinct
 PID references and integer `arcMetricIndex` 0 or 1 selecting a numeric, non-gear

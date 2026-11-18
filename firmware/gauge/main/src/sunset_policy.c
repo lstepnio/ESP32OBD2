@@ -65,14 +65,14 @@ void sunset_policy_toggle(sunset_policy_t *policy)
     policy->override = true;
 }
 
-bool sunset_button_release(sunset_button_t *button, bool pressed, uint64_t now_ms)
+static bool button_released(sunset_button_t *button, bool pressed, uint64_t now_ms)
 {
     if (button->candidate != pressed)
     {
         button->candidate = pressed;
         button->edge_ms   = now_ms;
     }
-    if (now_ms - button->edge_ms < 35)
+    if (now_ms - button->edge_ms < 20)
         return false;
     if (!button->armed)
     {
@@ -91,4 +91,14 @@ bool sunset_button_release(sunset_button_t *button, bool pressed, uint64_t now_m
     bool tap         = button->tracking && button->edge_ms - button->pressed_ms < 700;
     button->tracking = false;
     return tap;
+}
+
+bool sunset_button_update(sunset_button_t *button, bool pressed, bool can_apply, uint64_t now_ms)
+{
+    if (button_released(button, pressed, now_ms))
+        button->pending = !button->pending;
+    if (!can_apply || !button->pending)
+        return false;
+    button->pending = false;
+    return true;
 }

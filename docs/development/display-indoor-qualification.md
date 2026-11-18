@@ -1,6 +1,6 @@
 # Indoor display qualification
 
-This owns the bench sequence for ten pages, Dual + arc and sensor Auto orientation.
+This owns the bench sequence for board page capacity, Dual + arc and sensor Auto orientation.
 [Display experience](../architecture/display-experience.md) owns UX/defaults;
 [orientation](../architecture/hardware-and-transports.md#automatic-display-orientation)
 owns the sensor policy. Results belong in dated evidence, with installed identity,
@@ -14,29 +14,23 @@ awake helper, pause phone alert monitoring for the isolated session, and restore
 both afterward. Never clear bonds, erase configuration or invoke vehicle commands.
 Record exact version/ELF and healthy OTA state before and after every restart.
 
-## Ten-page round trip on the installed image
+## Board-capacity round trip
 
-Run only `TenPageDisplayJourneyTest` with explicit `allowGaugeWrite=true`. It requires
-`mp:10`, `dx:1`, 1..7 original pages and an original primary-PID/layout selection
-that can be restored without renaming pages. A pure storage reconstruction and an
-actual local append/remove dry run must preserve the complete profile/assignment
-state before any gauge send. Unsent setup differences are a preflight failure.
+Run `DashboardCapacityJourneyTest` with explicit `allowGaugeWrite=true` and
+`expectedPageLimit=5` for LCD or `12` for OLED. It checks negotiated `mp`,
+requires `dx:1`, and needs an existing dashboard with room to append pages.
+Unsent setup differences are a preflight failure. The fixture adds only new
+pages, checks that the App refuses an extra page, then sends and verifies the
+running revision, hash and cleared trial. It checks that the original sources,
+alerts, actions, filters and display settings remain intact.
 
-The fixture appends to ten without editing originals, including numeric arc slots
-0 and 1, gear in the non-arc slot when supported and ordinary layouts. Send through
-the ordinary App coordinator; require exact running revision/hash, cleared trial,
-complete readback and unchanged sources/alerts/filters/actions/settings. The optional
-`visualHoldMs` is bounded to three minutes and emits `TEN_PAGE_LAYOUT_READY` only
-after running proof. During that window the owner taps through all ten positions,
-checks 10/10 and navigation/label fit. No example values enter vehicle state.
-
-Finally remove only appended pages, prove exact local restoration, read a fresh
-protected base and send once. Require the original functional document (excluding
-expected base revision), settings and assignments. An uncertain send is not replayed;
-stop, retain backups and recover by fresh running proof. Configuration revisions
-advance twice for a successful temporary setup/restoration, not for navigation.
-Legacy built-in quick-select is deliberately limited to its original five readings;
-it is not a ten-page test API and must not be widened incidentally.
+During optional `visualHoldMs` (up to three minutes), observe
+`DASHBOARD_CAPACITY_READY`, then tap through the full board capacity, check wrap
+and inspect label fit. The fixture removes only the appended pages and sends
+the original functional document after verifying the running setup. An uncertain
+send is never replayed. Two successful writes advance the revision twice.
+Test preserved legacy LCD dashboards above five separately, since the fixture
+cannot restore an oversized document as a new send.
 
 ## Populated Dual + arc visual coverage
 

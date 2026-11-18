@@ -2,8 +2,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "board_page_capacity.h"
+
 #define SMART_PAGE_PIDS 32U
-#define SMART_PAGE_PAGES 10U
+#define SMART_PAGE_PAGES EGAUGE_RUNTIME_PAGES
 #define SMART_PAGE_MIN_VIEW_MS 5000U
 #define SMART_PAGE_EARLY_MS 30000U
 #define SMART_PAGE_PERSIST_MS 3000U

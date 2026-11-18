@@ -10,8 +10,9 @@
 #include "page_action.h"
 #include "diagnostic_filter.h"
 
+#include "board_page_capacity.h"
+
 #define EGAUGE_RUNTIME_PIDS 32
-#define EGAUGE_RUNTIME_PAGES 10
 #define EGAUGE_RUNTIME_ALERTS 32
 #define CONFIG_RUNTIME_STATUS_SIZE 44
 
@@ -33,6 +34,7 @@ typedef struct
     uint8_t            pid_count;
     uint8_t            pid_indices[2];
     uint8_t            arc_metric_index;
+    uint16_t           rpm_redline;
 } runtime_page_t;
 
 typedef struct

@@ -10,7 +10,8 @@ data class ProjectedPage(
     val pidId: String,
     val renderer: String,
     val secondaryPidId: String? = null,
-    val arcMetricIndex: Int = 0
+    val arcMetricIndex: Int = 0,
+    val rpmRedline: Int? = null
 )
 
 data class ProjectedAlert(
@@ -73,7 +74,7 @@ object ConfigurationProjector {
                 add("Vehicle source is invalid")
             }
             if (draft.pages.size !in
-                (if (allowEmptyPages) 0..10 else 1..10)
+                (if (allowEmptyPages) 0..MAX_DASHBOARD_PAGES else 1..MAX_DASHBOARD_PAGES)
             ) {
                 add("Add a page for the selected adapter before sending")
             }
@@ -96,6 +97,9 @@ object ConfigurationProjector {
                     page.layout !in setOf(GaugeLayout.Numeric, GaugeLayout.Dual, GaugeLayout.DualArc)
                 ) {
                     add("Gear uses Numeric, Dual or Dual + arc layout")
+                }
+                if (page.rpmRedline != null && (!page.isRpmRing || page.rpmRedline !in rpmRedlineRange)) {
+                    add("Page ${index + 1} has an invalid RPM redline")
                 }
                 if (page.arcMetricIndex !in 0..1 ||
                     (page.layout != GaugeLayout.DualArc && page.arcMetricIndex != 0) ||
@@ -270,7 +274,10 @@ object ConfigurationProjector {
                     .put("name", page.name)
                     .put("renderer", page.layout.renderer)
                     .put("pidIds", JSONArray(page.pidIds.map { definitionIds.getValue(it) }))
-                    .also { if (page.layout == GaugeLayout.DualArc) it.put("arcMetricIndex", page.arcMetricIndex) }
+                    .also {
+                        if (page.layout == GaugeLayout.DualArc) it.put("arcMetricIndex", page.arcMetricIndex)
+                        page.rpmRedline?.let { redline -> it.put("rpmRedline", redline) }
+                    }
             )
         }
         json.put("pages", pages)
@@ -303,7 +310,8 @@ object ConfigurationProjector {
                     definitionIds.getValue(page.pidIds[0]),
                     page.layout.renderer,
                     page.pidIds.getOrNull(1)?.let { definitionIds.getValue(it) },
-                    page.arcMetricIndex
+                    page.arcMetricIndex,
+                    page.rpmRedline
                 )
             },
             diagnosticFilters = draft.diagnosticFilters,

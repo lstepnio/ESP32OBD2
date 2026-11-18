@@ -44,6 +44,19 @@ object MeasurementUnits {
         }
     }
 
+    fun displayReading(value: String, unit: String, system: MeasurementSystem, id: String): String {
+        val digits = when {
+            id == "voltage" && unit == "V" -> 1
+            unit in setOf("%", "kPa", "deg") -> 1
+            unit in setOf("g/s", "L/h") -> 2
+            else -> return displayValue(value, unit, system)
+        }
+        val canonical = value.replace(",", "").toDoubleOrNull()?.takeIf { it.isFinite() } ?: return value
+        val rounded = java.math.BigDecimal.valueOf(value(canonical, unit, system))
+            .setScale(digits, java.math.RoundingMode.HALF_UP)
+        return alertNumber(rounded.toDouble())
+    }
+
     fun format(value: Double): String = alertNumber(
         java.math.BigDecimal.valueOf(value)
             .setScale(3, java.math.RoundingMode.HALF_UP).toDouble()

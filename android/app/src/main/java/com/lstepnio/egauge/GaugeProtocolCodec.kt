@@ -118,6 +118,7 @@ object GaugeProtocolCodec {
             displayShowcaseVersion = json.optInt("sc", 0).takeIf { it == 1 } ?: 0,
             configurationVersion = configurationVersion,
             pidCatalogVersion = if (configurationVersion >= 5) 1 else 0,
+            rpmRedlineSupported = json.opt("rl") == 1 && configurationVersion >= 7,
             oxygenVoltageSupported = json.optInt("ov", 0) == 1 && json.opt("ov") is Int && configurationVersion >= 5,
             vehicleDashboardVersion = json.optInt("va", 0).also { require(it in 0..1) },
             dualAdapterVersion = json.optInt("da", 0).also { require(it in 0..1) },
@@ -143,7 +144,7 @@ object GaugeProtocolCodec {
             },
             adapterRegistryVersion = json.optInt("ad", 0).also { require(it in 0..1) },
             maxPages = if (json.has("mp")) {
-                require(configurationVersion >= 2 && json.get("mp") is Int && json.getInt("mp") in 1..10) { "Invalid page limit" }
+                require(configurationVersion >= 2 && json.get("mp") is Int && json.getInt("mp") in 1..MAX_DASHBOARD_PAGES) { "Invalid page limit" }
                 json.getInt("mp")
             } else if (configurationVersion >=
                 2

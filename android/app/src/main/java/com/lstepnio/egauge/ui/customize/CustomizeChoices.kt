@@ -216,7 +216,7 @@ internal fun PageManager(
     EditorScaffold("Manage pages", onBack, "Done", onBack) {
         OutlinedButton(
             onAdd,
-            enabled = state.editingEnabled && state.pages.size < 10,
+            enabled = state.editingEnabled && state.pages.size < state.pageLimit,
             modifier = Modifier.fillMaxWidth()
         ) {
             EGaugeIcon(GaugeIcon.Add)
@@ -229,10 +229,10 @@ internal fun PageManager(
             Text("Keep at least one page.", style = MaterialTheme.typography.bodyMedium)
         }
         if (state.pages.size >=
-            10
+            state.pageLimit
         ) {
             Text(
-                "All 10 pages are in use. Remove one to add another.",
+                "Up to ${state.pageLimit} pages. Remove pages to add another.",
                 style = MaterialTheme.typography.bodyMedium
             )
         }

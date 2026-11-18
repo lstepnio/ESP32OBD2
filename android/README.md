@@ -29,5 +29,5 @@ serial for an authorized installation: `adb -s SERIAL install -r PATH_TO_APK`.
   including physical-phone safeguards and the separate reviewed golden baseline.
 - [Design tokens/components](../docs/design/design-system.md).
 
-Gradle locks resolved dependency versions and verifies artifact checksums. Material 3
+Gradle locks resolved dependency versions and verifies artifact checksums. Plugins resolve only from Google and Maven Central; the Plugin Portal serves a different Kotlin marker POM for the same coordinate, so it is not a fallback origin. Material 3
 Expressive uses a pinned prerelease dependency that still needs production review.

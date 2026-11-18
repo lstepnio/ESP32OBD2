@@ -60,6 +60,11 @@ def require_public_build(build):
         raise ValueError("Cannot identify the public companion build")
     entry = components[0]
     arguments = entry["arguments"] if "arguments" in entry else shlex.split(entry["command"])
+    define = "-DEGAUGE_BOARD_PAGE_LIMIT"
+    if [value for value in arguments if value == define or value.startswith(define + "=")] != [
+        define + "=5"
+    ]:
+        raise ValueError("Public reference firmware requires a five-page dashboard limit")
     for name in ("DUAL_ADAPTER", "SMART_CYCLE", "VEHICLE_ACTIONS"):
         define = f"-DEGAUGE_FEATURE_{name}"
         if [value for value in arguments if value == define or value.startswith(define + "=")] != [
