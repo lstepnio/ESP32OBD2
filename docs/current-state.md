@@ -4,22 +4,12 @@ Updated 2026-11-18. This is the current source/device snapshot, not a delivery d
 The [backlog](backlog.md) owns next acceptance outcomes; the [roadmap](roadmap.md)
 owns their order. Recheck the active branch, CI and device owner before delivery.
 
-## Consolidated update candidate
-
-App dev.59 and reference firmware dev.88 combine board-reported page capacity,
-RPM redline scales, retained time-spaced trends, readable PID precision, retained
-clock scheduling, stable Auto orientation, brightness-button recovery, code-backed
-warning alerts and independent worker stall reporting. The OLED integration retains
-its existing Quiet Actions, splash and footer presentation. No vehicle actions are
-operated during delivery. Installation identities and saved-state comparisons must
-be recorded before replacing the installed baseline below.
-
 ## Installed baseline
 
 | Item | Latest recorded state | Evidence and limits |
 | --- | --- | --- |
-| Pixel | App dev.58, built from the source merged in PR #134 | Installed APK matched its local build. Both named gauges and saved vehicle profiles were retained |
-| Gauge | **S3-LCD-1.28 v1** on [signed dev.84](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.84)<br>**S3-OLED-1.75 v1** on private w06 bench firmware | Exact healthy images and saved setup confirmed after App/Wi-Fi. LCD ABS/TCS recovery readback showed operation 0 after the owner's confirmation |
+| Pixel | App dev.59, current consolidated runtime | Exact installed APK, unchanged preferences/history, both gauge identities and automatic settings reads verified; [delivery evidence](evidence/development-device-refresh.md#refresh-2026-11-18) |
+| Gauge | **S3-LCD-1.28 v1** on [signed dev.88](https://github.com/lstepnio/ESP32OBD2/releases/tag/dev-v0.2.0-dev.88)<br>**S3-OLED-1.75 v1** on private `0.2.0-dev.88-amoled.2-w27` | App/Wi-Fi exact-image, healthy OTA, dashboard preservation, automatic settings refresh and icons Off/On passed. Day 100%, Night 10%, icons On; private receipts retained outside Git |
 | Vehicle | Modified 2010 Wrangler, 5.7 L Hemi, JSS ZF 8HP70 / PCS TCM-2800 | Controller definitions remain calibration-specific. See [JK reading coverage](vehicles/jeep/reading-coverage.md) |
 
 **OLED field report, 2026-11-09.** The owner tested the gauge on the Hemi-swapped Jeep and reported that everything worked as expected. It does not
@@ -28,16 +18,16 @@ and memory margins. The [roadmap](roadmap.md#remaining-validation-by-board) sepa
 the remaining checks. Historical dev.81 results remain in the
 [combined delivery evidence](evidence/dev81-combined-delivery.md).
 
-## Latest merged delivery
+## Latest delivery
 
-PR #128 adds the [product delivery framework](documentation.md#product-quality-and-public-story)
-and the approved CODE-06 through CODE-09 follow-up. Per-action observation receipts replace
-the shared freshness timestamp; storage/queue fixtures and admission telemetry,
-compact current context, and source-aware public claims/screenshots are
-implemented and verified offline. [Implementation evidence](evidence/product-quality-implementation.md)
-records source checks; [dev.81 delivery](evidence/dev81-combined-delivery.md) records
-the installed App/FW pair and read-only indoor acceptance. Retired-callback faults,
-flash interruption, loaded radio and vehicle-control restoration remain distinct gates.
+[PR #172](https://github.com/lstepnio/ESP32OBD2/pull/172) consolidates board capacity,
+RPM scales, retained trends, PID precision, retained clock scheduling, code-backed
+warning presentation and worker health. The private OLED integration adds bounded
+panel redraw recovery while retaining the current presentation. Firmware delivery
+and [source/CI acceptance](https://github.com/lstepnio/ESP32OBD2/pull/172) are separate
+records. No vehicle actions were operated. Loaded adapter recovery, panel fault
+injection, clock/power-loss limits and field warning behavior still require their
+backlog qualification; indoor success is not a completed soak.
 
 ## Implemented product
 

@@ -2,7 +2,7 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal()
+        // Keep Kotlin marker metadata on the checksum-pinned Maven Central origin.
     }
 }
 dependencyResolutionManagement {

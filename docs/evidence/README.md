@@ -66,3 +66,5 @@ Search only the relevant report when exact evidence is needed.
 - [Wi-Fi transport security validation, 2026-09-26](wifi-transport-security-validation.md)
 
 - [Alert/diagnostic source and scheduler design audit](alerts-diagnostics-design-audit.md), 2026-10-07: source review and synthetic clock fixture; no physical observations.
+
+- [Development device refresh](development-device-refresh.md): historical November 10 and current November 18 source/device preservation, identities and cleanup.
