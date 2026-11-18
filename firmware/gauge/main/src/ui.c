@@ -254,8 +254,8 @@ struct _ui_t
     portMUX_TYPE            sample_lock;
     ui_sample_t             samples[EGAUGE_RUNTIME_PIDS];
     uint32_t                sample_continuity;
-    ui_trend_bank_t *trends;
-    unsigned trend_metric_count;
+    ui_trend_bank_t        *trends;
+    unsigned                trend_metric_count;
     struct
     {
         bool     ready;
@@ -1921,9 +1921,9 @@ static void ui_task(lv_timer_t *timer)
         ui->action_feedback = false;
     if (ui->action_label && !ui->calibration_mode)
     {
-        bool visible = !ui->pairing_visible && !ui->calibration_mode && !atomic_load(&ui->showcase_active) &&
-                       !ui->rendered_alert.attention && !ui->command_menu_visible &&
-                       (ui->action.progress || ui->action_feedback);
+        bool visible  = !ui->pairing_visible && !ui->calibration_mode && !atomic_load(&ui->showcase_active) &&
+                        !ui->rendered_alert.attention && !ui->command_menu_visible &&
+                        (ui->action.progress || ui->action_feedback);
         bool cooldown = ui->action_feedback && ui->action_feedback_cooldown;
         if (ui->action.config.vehicle_menu && (!cooldown || EGAUGE_EXPERIMENTAL_QUIET_ACTIONS))
         {
@@ -1938,8 +1938,8 @@ static void ui_task(lv_timer_t *timer)
             arrow[4] = (lv_point_precise_t){px(5), px(14)};
             static lv_point_precise_t stroke[2], pause_bar[2];
             stroke[0] = pause_bar[0] = (lv_point_precise_t){0, 0};
-            stroke[1] = (lv_point_precise_t){px(10), 0};
-            pause_bar[1] = (lv_point_precise_t){0, px(8)};
+            stroke[1]                = (lv_point_precise_t){px(10), 0};
+            pause_bar[1]             = (lv_point_precise_t){0, px(8)};
             for (unsigned i = 0; i < 5; ++i)
             {
                 if (!ui->action_arrows[i])
@@ -3122,7 +3122,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     if (thermal)
     {
         value = "Coolant too hot";
-        note = button[0] ? "Stopping" : "";
+        note  = button[0] ? "Stopping" : "";
         if (!enabled)
             button = "";
     }
@@ -3132,7 +3132,7 @@ static void refresh_vehicle_menu(ui_t *ui)
             value = "Idle unconfirmed";
         if (phase == VEHICLE_STOPPING || phase == VEHICLE_VERIFYING)
         {
-            value = "Checking idle";
+            value  = "Checking idle";
             button = "";
         }
     }
@@ -3146,7 +3146,7 @@ static void refresh_vehicle_menu(ui_t *ui)
     bool coolant_warning = id < 3 && (state & (VEHICLE_UI_COOLANT_HIGH << 8));
     lv_obj_set_style_text_color(ui->command_value,
                                 lv_color_hex(thermal           ? 0xff7064
-                                             : connecting        ? color_text_secondary
+                                             : connecting      ? color_text_secondary
                                              : coolant_warning ? color_warning
                                                                : color_text_primary),
                                 0);
@@ -3413,7 +3413,7 @@ void ui_show_vehicle_actions(ui_t *ui)
                 ui->command_page_dots[i] = dot;
             }
         }
-        lv_obj_t *targets[]     = {ui->command_back, ui->command_button};
+        lv_obj_t *targets[] = {ui->command_back, ui->command_button};
         for (unsigned i = 0; i < 2; ++i)
         {
             lv_obj_add_flag(targets[i], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
