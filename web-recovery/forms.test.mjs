@@ -19,10 +19,8 @@ for (const formId of ['#interest-form','#custom-form']) {
           headers:{get:()=>scenario==='html503'?'text/html':'application/json'},
           json:async()=>{if(scenario==='invalid-json')throw new SyntaxError('raw JSON detail');return scenario==='success'?{ok:true}:{error:'Review your email address.'};}};
       };
-      const formPage = new Set(['#interest-form', '#custom-form', '#year', '#form-message', '#custom-message']);
-      const document = {querySelector: id => formPage.has(id) ? element(id) : null, querySelectorAll: () => []};
       new Function('document','fetch','FormData',source)(
-        document,fetch,class{*[Symbol.iterator](){yield ['email','synthetic@example.invalid'];}});
+        {querySelector:element,querySelectorAll:()=>[]},fetch,class{*[Symbol.iterator](){yield ['email','synthetic@example.invalid'];}});
       await element(formId).submit({preventDefault(){}});
       assert.equal(element(formId).resetCount, scenario==='success'?1:0);
       assert.equal(element(formId+'button').disabled,false);
